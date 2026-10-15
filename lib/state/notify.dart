@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -17,18 +18,27 @@ class Notify {
       _mac.setMethodCallHandler((call) async {
         if (call.method == 'clicked') _onClick?.call();
       });
-      await _mac.invokeMethod<bool>('setup');
+      // Not awaited: macOS only answers once the person picks Allow or Don't
+      // Allow, and the window mustn't wait for that. A refusal just means no banners.
+      unawaited(_mac.invokeMethod<bool>('setup').catchError((_) => false));
     } else {
-      await localNotifier.setup(appName: 'Stackyard', shortcutPolicy: ShortcutPolicy.requireCreate);
+      try {
+        await localNotifier.setup(appName: 'Stackyard', shortcutPolicy: ShortcutPolicy.requireCreate);
+      } catch (_) {
+        // No notifications; the tray still works.
+      }
     }
   }
 
+  /// Never throws: notifications turned off in system settings are not an error.
   static Future<void> show(String title, String body) async {
-    if (Platform.isMacOS) {
-      await _mac.invokeMethod<void>('show', {'title': title, 'body': body});
-    } else {
-      final n = LocalNotification(title: title, body: body)..onClick = _onClick;
-      await n.show();
-    }
+    try {
+      if (Platform.isMacOS) {
+        await _mac.invokeMethod<void>('show', {'title': title, 'body': body});
+      } else {
+        final n = LocalNotification(title: title, body: body)..onClick = _onClick;
+        await n.show();
+      }
+    } catch (_) {}
   }
 }

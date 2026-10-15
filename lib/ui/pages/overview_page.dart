@@ -234,21 +234,31 @@ class _OverviewPageState extends State<OverviewPage> {
 
   Future<void> _cleanSelected(BuildContext context, List<(TechEntry, InstalledItem)> wins) async {
     final chosen = wins.where((w) => _selected.contains(w.$2.id)).toList();
-    final recycle = <String>[];
-    final commands = <CommandSpec>[];
-    for (final (tech, item) in chosen) {
-      final plan = tech.adapter.planRemove(item);
-      recycle.addAll(plan?.recycle ?? const []);
-      // Some things are removed with their own uninstaller rather than the Recycle Bin.
-      commands.addAll(plan?.commands ?? const []);
-    }
+    // Each item keeps its own plan: some go to the Recycle Bin, some run their own
+    // uninstaller or delete command, some also clear environment variables.
+    final plans = [
+      for (final (tech, item) in chosen)
+        if (tech.adapter.planRemove(item) case final plan?) (item, plan),
+    ];
+    if (plans.isEmpty) return;
     final bytes = chosen.fold<int>(0, (s, w) => s + (w.$2.sizeBytes ?? 0));
-    final change = PlannedChange(title: 'Clean up ${chosen.length} item${chosen.length == 1 ? '' : 's'}', recycle: recycle, commands: commands);
-    final confirmed = await confirmRemoval(context, change, bytes: bytes);
-    if (confirmed != null && context.mounted) {
-      context.read<AppState>().run(confirmed, removesItemIds: chosen.map((w) => w.$2.id).toList());
-      setState(_selected.clear);
+    final warnings = {for (final (_, plan) in plans) ?plan.warning};
+    // One confirmation that shows everything that will happen.
+    final summary = PlannedChange(
+      title: 'Clean up ${plans.length} item${plans.length == 1 ? '' : 's'}',
+      recycle: [for (final (_, plan) in plans) ...plan.recycle],
+      commands: [for (final (_, plan) in plans) ...plan.commands],
+      env: [for (final (_, plan) in plans) ...plan.env],
+      warning: warnings.isEmpty ? null : warnings.join('\n'),
+      confirmLabel: plans.map((e) => e.$2.confirmLabel).whereType<String>().firstOrNull,
+    );
+    final confirmed = await confirmRemoval(context, summary, bytes: bytes);
+    if (confirmed == null || !context.mounted) return;
+    final state = context.read<AppState>();
+    for (final (item, plan) in plans) {
+      state.run(confirmed.permanent ? plan.deletingPermanently() : plan, removesItemIds: [item.id]);
     }
+    setState(_selected.clear);
   }
 }
 

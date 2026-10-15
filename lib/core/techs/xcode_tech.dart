@@ -42,6 +42,8 @@ class XcodeTech extends TechAdapter {
         path: '',
         group: runtimesGroup,
         isBroken: r['state'] != null && r['state'] != 'Ready',
+        // A runtime used recently isn't a clean-up candidate even with no simulator on it now.
+        lastUsedAt: lastUsed,
         removable: r['deletable'] != false,
         removeHint: r['deletable'] == false ? 'Xcode itself includes this runtime, so it can\'t be deleted on its own.' : null,
         details: {

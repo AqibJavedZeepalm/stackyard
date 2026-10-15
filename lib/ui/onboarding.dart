@@ -36,7 +36,8 @@ class _OnboardingState extends State<Onboarding> {
   void initState() {
     super.initState();
     // Searching starts right away, so the list is usually ready by step two.
-    findProjectFolders().then((found) {
+    // A failed search still ends with a list, so "Add folder…" appears.
+    findProjectFolders().catchError((_) => <(String, int)>[]).then((found) {
       if (!mounted) return;
       setState(() {
         _found = found;
@@ -74,6 +75,15 @@ class _OnboardingState extends State<Onboarding> {
         children: [
           // The title bar is hidden; this strip still moves the window.
           if (widget.nativeChrome) const Positioned(top: 0, left: 0, right: 0, height: 40, child: DragToMoveArea(child: SizedBox.expand())),
+          // Windows draws its own minimize / maximize / close buttons (macOS keeps its traffic lights).
+          if (widget.nativeChrome && Platform.isWindows)
+            Positioned(
+              top: 0,
+              right: 0,
+              width: 138,
+              height: 48,
+              child: WindowCaption(brightness: theme.brightness, backgroundColor: Colors.transparent),
+            ),
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 620),

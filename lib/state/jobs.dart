@@ -395,6 +395,9 @@ class JobQueue extends ChangeNotifier {
             }
           });
     final code = await process.exitCode;
+    // Only a cancel that stopped the process counts; one that lands after it
+    // finished must not delete a completed install.
+    final killed = job.cancelRequested && code != 0;
     guard.cancel();
     watch?.cancel();
     _process = null;
@@ -404,7 +407,7 @@ class JobQueue extends ChangeNotifier {
     job.progress = null;
     job.receivedBytes = null;
     // A cancelled install leaves half a folder that the tool would later take for a real one.
-    if (job.cancelRequested && createsWatched && Sys.dirExists(cmd.watchPath!)) {
+    if (killed && createsWatched && Sys.dirExists(cmd.watchPath!)) {
       _log(job, 'Removing the unfinished ${cmd.watchPath}');
       await Sys.deletePermanently(cmd.watchPath!);
     }

@@ -358,7 +358,7 @@ class Sys {
     } on PlatformException catch (e) {
       return ProcessResult(0, 1, '', e.message ?? 'Couldn\'t move it to the Trash.');
     } catch (_) {
-      final quoted = path.replaceAll(r'\', r'\').replaceAll('"', r'\"');
+      final quoted = path.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
       return Process.run('osascript', ['-e', 'tell application "Finder" to delete POSIX file "$quoted"']);
     }
   }

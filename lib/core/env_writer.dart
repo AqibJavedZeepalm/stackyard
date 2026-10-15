@@ -89,7 +89,7 @@ class EnvWriter {
         }
         continue;
       }
-      String esc(String s) => s.replaceAll(r'\', r'\\').replaceAll('"', r'\"').replaceAll(r'$', r'\$');
+      String esc(String s) => s.replaceAll(r'\', r'\\').replaceAll('"', r'\"').replaceAll(r'$', r'\$').replaceAll('`', r'\`');
       final body = [
         start,
         '# Added by Stackyard. Change it from the app, or delete this block.',

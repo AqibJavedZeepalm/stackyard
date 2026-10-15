@@ -99,16 +99,26 @@ class Settings extends ChangeNotifier {
           s.sizeMeta = {};
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // An unreadable file still means Stackyard has run here before: don't
+      // send an existing user back through onboarding.
+      s.onboarded = file.existsSync();
+    }
     if (s.roots.isEmpty) s.roots = defaultProjectRoots();
     return s;
   }
 
-  Future<void> save() async {
+  /// Saves run one after another, each written to a temp file and then swapped
+  /// in, so a crash or two quick changes can't leave a half-written file.
+  Future<void> save() => _saving = _saving.then((_) => _write());
+  Future<void> _saving = Future.value();
+
+  Future<void> _write() async {
     final file = _file;
     if (file == null) return;
     try {
-      await file.writeAsString(
+      final tmp = File('${file.path}.tmp');
+      await tmp.writeAsString(
         jsonEncode({
           'roots': roots,
           'themeMode': themeMode.name,
@@ -127,7 +137,9 @@ class Settings extends ChangeNotifier {
           'sizeMeta': sizeMeta,
           'sizeCacheVersion': sizeCacheVersion,
         }),
+        flush: true,
       );
+      await tmp.rename(file.path);
     } catch (_) {}
   }
 

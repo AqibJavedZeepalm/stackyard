@@ -61,7 +61,7 @@ Future<List<(String, int)>> findProjectFolders({String? home, List<String>? usua
         final name = p.basename(e.path);
         final lower = name.toLowerCase();
         // SDKs (fvm, flutter, google-cloud-sdk…) ship sample packages that aren't your projects.
-        if (name.startsWith('.') || _notProjects.contains(lower) || skipFolderNames.contains(lower) || lower.contains('sdk') || _isFlutterSdk(e.path)) continue;
+        if (name.startsWith('.') || _notProjects.contains(lower) || lower.startsWith('onedrive') || skipFolderNames.contains(lower) || lower.contains('sdk') || _isFlutterSdk(e.path)) continue;
         if (FileSystemEntity.isDirectorySync(e.path)) consider(e.path);
       }
     } catch (_) {}
