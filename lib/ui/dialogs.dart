@@ -178,7 +178,7 @@ Future<PlannedChange?> _confirm(BuildContext context, PlannedChange change, {int
                     : permanent
                     ? 'Delete permanently'
                     : change.recycle.isEmpty
-                    ? 'Uninstall'
+                    ? (change.confirmLabel ?? 'Uninstall')
                     : 'Move to ${Sys.trashName}',
               ),
               onPressed: () => Navigator.pop(context, true),

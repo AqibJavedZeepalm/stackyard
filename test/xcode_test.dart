@@ -38,5 +38,7 @@ void main() {
     );
     expect(tech.planRemove(sim)!.commands.single.arguments, ['simctl', 'delete', 'U1']);
     expect(XcodeTech.planErase(sim).commands.single.arguments, ['simctl', 'erase', 'U1']);
+    expect(XcodeTech.planErase(sim).confirmLabel, 'Erase', reason: 'not "Uninstall"');
+    expect(tech.planRemove(sim)!.confirmLabel, 'Delete');
   });
 }

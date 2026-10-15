@@ -137,11 +137,13 @@ class XcodeTech extends TechAdapter {
     title: 'Erase ${sim.title}',
     commands: [CommandSpec(title: 'Erase all content and settings', executable: _xcrun, arguments: ['simctl', 'erase', udid(sim)!])],
     warning: 'Apps and data inside this simulator are erased. It starts like new next time.',
+    confirmLabel: 'Erase',
   );
 
   static PlannedChange planDeleteUnavailable() => PlannedChange(
     title: 'Delete simulators that can\'t start',
     commands: [CommandSpec(title: 'Delete every simulator whose runtime is gone', executable: _xcrun, arguments: ['simctl', 'delete', 'unavailable'])],
+    confirmLabel: 'Delete',
   );
 
   /// Simulators and runtimes are removed through simctl, which keeps Xcode's
@@ -154,6 +156,7 @@ class XcodeTech extends TechAdapter {
         title: 'Delete simulator ${item.title}',
         commands: [CommandSpec(title: 'Delete ${item.title} (${item.details['OS']})', executable: _xcrun, arguments: ['simctl', 'delete', udid(item)!])],
         warning: 'Apps and data inside it are deleted for good. Xcode can make a new one in Window → Devices and Simulators.',
+        confirmLabel: 'Delete',
       );
     }
     if (item.group == runtimesGroup) {
@@ -165,6 +168,7 @@ class XcodeTech extends TechAdapter {
           if (users > 0) '$users simulator${users == 1 ? '' : 's'} use${users == 1 ? 's' : ''} it and won\'t start until it\'s back.',
           'Xcode downloads it again from Settings → Components.',
         ].join(' '),
+        confirmLabel: 'Delete',
       );
     }
     return super.planRemove(item);

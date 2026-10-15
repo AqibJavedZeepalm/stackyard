@@ -299,6 +299,7 @@ class PlannedChange {
     this.record,
     this.warning,
     this.learnMoreUrl,
+    this.confirmLabel,
   });
 
   final String title;
@@ -339,9 +340,13 @@ class PlannedChange {
     record: record,
     warning: warning,
     learnMoreUrl: learnMoreUrl,
+    confirmLabel: confirmLabel,
   );
   final String? warning;
   final String? learnMoreUrl;
+
+  /// The confirm button for a removal that runs commands ("Erase", "Delete"); "Uninstall" when unset.
+  final String? confirmLabel;
 
   bool get isEmpty => commands.isEmpty && edits.isEmpty && recycle.isEmpty && downloads.isEmpty && env.isEmpty;
 }
