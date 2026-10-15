@@ -100,7 +100,7 @@ class _StackyardAppState extends State<StackyardApp> with WidgetsBindingObserver
   Widget build(BuildContext context) {
     final settings = context.watch<Settings>();
     final accent = SystemTheme.accentColor.accent.toAccentColor();
-    // Mica on Windows 11, the sidebar material (vibrancy) on macOS.
+    // Acrylic on Windows 11, the sidebar material (vibrancy) on macOS.
     final glass = Sys.hasGlass ? settings.glass / 100 : 0.0;
     final mica = glass > 0;
 
@@ -115,11 +115,12 @@ class _StackyardAppState extends State<StackyardApp> with WidgetsBindingObserver
         visualDensity: VisualDensity.standard,
         focusTheme: const FocusThemeData(glowFactor: 0),
         micaBackgroundColor: mica ? Colors.transparent : null,
-        // The sidebar shows the most glass; the content stays mostly solid so text reads
-        // well (at 100%, 70% opaque), like Finder and Mail.
-        scaffoldBackgroundColor: mica ? base.withValues(alpha: 1 - 0.3 * glass) : null,
+        // The sidebar shows the most glass; the content stays more solid so text reads
+        // well, like Finder and Mail. At 100% on Windows: 20% (sidebar) and 50%
+        // (content) of the app's own color over acrylic.
+        scaffoldBackgroundColor: mica ? base.withValues(alpha: 1 - (Platform.isWindows ? 0.5 : 0.3) * glass) : null,
         navigationPaneTheme: NavigationPaneThemeData(
-          backgroundColor: mica ? base.withValues(alpha: 0.85 * (1 - glass)) : null,
+          backgroundColor: mica ? base.withValues(alpha: Platform.isWindows ? 1 - 0.8 * glass : 0.85 * (1 - glass)) : null,
         // fluent_ui's default (12 + 16 + 12 = 40 px) overflows the 38 px item on the
         // first frame of the pane opening; 2 px less on the end side fits.
           iconPadding: const EdgeInsetsDirectional.only(start: 12, end: 10),
@@ -159,9 +160,10 @@ Future<void> applyWindowEffect(Settings settings, {bool force = false}) async {
     return;
   }
   // Mica in dark mode is nearly the same #202020 the app paints, so the slider
-  // changed nothing you could see. Acrylic (the blur Windows Terminal uses) does
-  // show the desktop through. Early Windows 11 builds only have Mica, and
-  // Windows 10's acrylic lags while the window moves, so it stays solid there.
+  // changed nothing you could see; acrylic shows what's behind the window.
+  // (Windows' plain blur-behind renders black on current Windows 11.) Early
+  // Windows 11 builds only have Mica; Windows 10's acrylic lags while the window
+  // moves, so it stays solid there and the option is hidden.
   final build = Sys.windowsBuild;
   final effect = !settings.mica || build < 22000
       ? acrylic.WindowEffect.solid
