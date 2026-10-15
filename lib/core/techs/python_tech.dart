@@ -111,6 +111,38 @@ class PythonTech extends TechAdapter {
       }
       if (out.isNotEmpty) managers.add('py launcher');
     }
+    if (!Sys.isWindows) {
+      // python.org's installer (also what Get tools uses on macOS).
+      for (final d in Sys.subdirs('/Library/Frameworks/Python.framework/Versions')) {
+        final exe = p.join(d.path, 'bin', 'python3');
+        if (!RegExp(r'^\d+\.\d+').hasMatch(p.basename(d.path)) || !Sys.fileExists(exe)) continue;
+        managers.add('python.org');
+        final exact = (await Sys.run(exe, ['--version']))?.replaceFirst('Python ', '') ?? p.basename(d.path);
+        add(exact, d.path, 'python.org installer', removable: false, hint: 'Installed by python.org\'s installer into /Library. Remove it in Finder (it asks for your password).');
+      }
+      // Homebrew: Cellar/python@3.12/3.12.7
+      for (final cellar in ['/opt/homebrew/Cellar', '/usr/local/Cellar']) {
+        for (final formula in Sys.subdirs(cellar)) {
+          final name = p.basename(formula.path);
+          if (name != 'python' && !name.startsWith('python@')) continue;
+          for (final v in Sys.subdirs(formula.path)) {
+            final version = RegExp(r'^\d+\.\d+\.\d+').firstMatch(p.basename(v.path))?[0];
+            if (version == null) continue;
+            managers.add('Homebrew');
+            add(version, v.path, 'Homebrew', removable: false, hint: 'Installed with Homebrew, which manages its files. Remove it with Homebrew.');
+          }
+        }
+      }
+      // The default is whichever python3 your PATH finds.
+      if (Sys.which('python3') case final onPath?) {
+        var real = onPath;
+        try {
+          real = File(onPath).resolveSymbolicLinksSync();
+        } catch (_) {}
+        final i = items.indexWhere((it) => p.isWithin(it.path, real));
+        if (i >= 0 && !items.any((it) => it.isGlobal)) items[i] = _asGlobal(items[i]);
+      }
+    }
     if (items.isEmpty) return null;
     items.sort((a, b) => compareVersions(b.version, a.version));
 

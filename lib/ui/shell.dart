@@ -119,7 +119,8 @@ class ShellState extends State<Shell> {
     return NavigationView(
       titleBar: TitleBar(
         isBackButtonVisible: false,
-        icon: const _AppIcon(),
+        // Leaves room for the macOS traffic-light buttons.
+        icon: Padding(padding: EdgeInsets.only(left: Platform.isMacOS ? 64 : 0), child: const _AppIcon()),
         title: const Text('Stackyard'),
         endHeader: _ScanStatus(state: state, jobs: jobs, onOpenActivity: () => open('activity')),
         captionControls: widget.nativeChrome && Platform.isWindows

@@ -71,10 +71,11 @@ abstract class MarketTool {
   bool get viaNpm => false;
 
   /// The program PATH should find once this is the default (to tell which version is active).
-  String? get binary => const {
+  String? get binary => {
     'flutter': 'flutter',
     'node': 'node',
-    'python': 'python',
+    // python.org's macOS installer only adds python3.
+    'python': Sys.isWindows ? 'python' : 'python3',
     'java': 'java',
     'dotnet': 'dotnet',
     'go': 'go',
@@ -272,7 +273,8 @@ class PythonMarket extends MarketTool {
     final minor = v.version.split('.').take(2).join('.');
     final pkg = p.join(Sys.home, '.stackyard-downloads', 'python-${v.version}-macos11.pkg');
     return MarketPlan(
-      download: DownloadStep(url: 'https://www.python.org/ftp/python/${v.version}/python-${v.version}-macos11.pkg', label: 'Python ${v.version}', saveAs: pkg),
+      // Previews (3.15.0rc1) live in their release's folder (3.15.0).
+      download: DownloadStep(url: 'https://www.python.org/ftp/python/${RegExp(r'^\d+\.\d+\.\d+').stringMatch(v.version) ?? v.version}/python-${v.version}-macos11.pkg', label: 'Python ${v.version}', saveAs: pkg),
       commands: [
         CommandSpec(
           title: 'Run the python.org installer (asks for your password)',

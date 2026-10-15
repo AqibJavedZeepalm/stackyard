@@ -148,6 +148,9 @@ class JobQueue extends ChangeNotifier {
           _log(job, '> skip $path (already gone)');
           continue;
         }
+        if (FileSystemEntity.isDirectorySync(path) && Sys.isSharedFolder(path)) {
+          throw Exception('Stopped: $path is shared by other programs, so Stackyard won\'t remove it.');
+        }
         if (job.change.permanent) {
           _log(job, '> delete permanently: $path');
           await Sys.deletePermanently(path);
@@ -163,7 +166,7 @@ class JobQueue extends ChangeNotifier {
           final err = '${r.stderr}'.trim();
           throw Exception(
             err.contains('OperationCanceled') || err.contains('canceled')
-                ? 'Cancelled in the Windows dialog.'
+                ? 'Cancelled.'
                 : 'Couldn\'t remove $path. ${err.split('\n').first}',
           );
         }
@@ -273,6 +276,8 @@ class JobQueue extends ChangeNotifier {
       if (d.saveAs != null) {
         File(d.saveAs!).parent.createSync(recursive: true);
         await file.copy(d.saveAs!);
+        // Downloaded installers (rustup-init…) must be runnable on macOS.
+        if (!Sys.isWindows && !d.saveAs!.endsWith('.pkg')) await Process.run('chmod', ['+x', d.saveAs!]);
       }
       if (d.extractTo != null) {
         _log(job, '> unpack to ${d.extractTo}');

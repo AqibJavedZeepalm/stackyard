@@ -34,6 +34,12 @@ class JavaTech extends TechAdapter {
     } else {
       addChildren('/Library/Java/JavaVirtualMachines', 'System');
       candidates.add(('/Applications/Android Studio.app/Contents/jbr', 'Android Studio', false));
+      // Homebrew's openjdk, openjdk@17…
+      for (final opt in ['/opt/homebrew/opt', '/usr/local/opt']) {
+        for (final d in Sys.subdirs(opt)) {
+          if (p.basename(d.path).startsWith('openjdk')) candidates.add((p.join(d.path, 'libexec', 'openjdk.jdk'), 'Homebrew', false));
+        }
+      }
     }
     addChildren(p.join(Sys.home, '.jdks'), 'IntelliJ', removable: true);
     addChildren(p.join(Sys.home, '.sdkman', 'candidates', 'java'), 'SDKMAN', removable: true);
@@ -71,6 +77,10 @@ class JavaTech extends TechAdapter {
               ? null
               : source == 'Android Studio'
               ? 'Part of Android Studio. It goes away when Android Studio is removed.'
+              : source == 'Homebrew'
+              ? 'Installed with Homebrew, which manages its files. Remove it with Homebrew.'
+              : !Sys.isWindows
+              ? 'It\'s in /Library/Java, which needs your password to change. Remove it in Finder.'
               : 'Its installer isn\'t listed in Installed apps, so Stackyard can\'t remove it safely.',
           installedAt: Sys.modified(path),
           details: {'Source': source, if (vendor != null) 'Vendor': vendor, if (isActive) 'Active': 'Yes'},
@@ -119,8 +129,10 @@ class JavaTech extends TechAdapter {
   Future<String?> _activeJavaHome() async {
     final java = Sys.which('java');
     if (java == null) return null;
+    // macOS: /usr/bin/java is a stub that offers to install a JDK when there isn't one.
+    if (!Sys.isWindows && java == '/usr/bin/java' && await Sys.run('/usr/libexec/java_home', []) == null) return null;
     try {
-      final r = await Process.run(java, ['-XshowSettings:properties', '-version']).timeout(const Duration(seconds: 10));
+      final r = await Process.run(java, ['-XshowSettings:properties', '-version'], environment: Sys.env).timeout(const Duration(seconds: 10));
       return RegExp(r'java\.home = (.+)').firstMatch('${r.stderr}${r.stdout}')?[1]?.trim();
     } catch (_) {
       return null;

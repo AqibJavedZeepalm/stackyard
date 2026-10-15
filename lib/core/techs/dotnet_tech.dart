@@ -47,7 +47,11 @@ class DotnetTech extends TechAdapter {
           version: version,
           path: dir,
           removable: uninstall != null,
-          removeHint: uninstall != null ? null : 'Installed with Visual Studio. Remove it with the Visual Studio Installer so Visual Studio keeps working.',
+          removeHint: uninstall != null
+              ? null
+              : Sys.isWindows
+              ? 'Installed with Visual Studio. Remove it with the Visual Studio Installer so Visual Studio keeps working.'
+              : 'Installed by Microsoft\'s .NET installer into a system folder. Remove it with Microsoft\'s dotnet-uninstall tool.',
           installedAt: Sys.modified(dir),
         ),
       );

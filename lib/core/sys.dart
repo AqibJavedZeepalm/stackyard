@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter/services.dart' show MethodChannel, PlatformException;
 import 'package:path/path.dart' as p;
 
 import 'window_guard.dart';
@@ -20,7 +21,7 @@ class Sys {
   /// Windows only hands a new PATH to programs when they start, but installers
   /// change it while Stackyard is running.
   static Future<void> refreshEnvironment() async {
-    if (!isWindows) return;
+    if (!isWindows) return _refreshUnixEnvironment();
     final value = RegExp(r'^ {4}(\S.*?) {4}(REG_SZ|REG_EXPAND_SZ) {4}(.*)$');
     Future<Map<String, String>> read(String key) async => {
       for (final line in const LineSplitter().convert(await run('reg.exe', ['query', key]) ?? ''))
@@ -36,6 +37,43 @@ class Sys {
       }
     }
     env['PATH'] = [machine['Path'] ?? machine['PATH'], user['Path'] ?? user['PATH']].whereType<String>().map(expandVars).join(';');
+  }
+
+  /// macOS: an app opened from Finder, the Dock or at login gets a bare PATH
+  /// (/usr/bin:/bin:/usr/sbin:/sbin), not the one your terminal has. Asks your
+  /// login shell for its variables, which also picks up Stackyard's own
+  /// ~/.zprofile changes, and falls back to the usual Homebrew folders.
+  static Future<void> _refreshUnixEnvironment() async {
+    final login = Platform.environment['SHELL'];
+    final shell = login != null && (login.endsWith('zsh') || login.endsWith('bash')) ? login : '/bin/zsh';
+    const marker = '__STACKYARD_ENV__';
+    try {
+      final proc = await Process.start(shell, ['-l', '-i', '-c', 'printf "$marker"; env -0'], environment: {'HOME': home});
+      proc.stdin.close();
+      final out = proc.stdout.fold<List<int>>([], (all, chunk) => all..addAll(chunk));
+      proc.stderr.drain<void>();
+      final code = await proc.exitCode.timeout(const Duration(seconds: 10), onTimeout: () {
+        proc.kill();
+        return -1;
+      });
+      final text = utf8.decode(await out, allowMalformed: true);
+      final start = text.indexOf(marker);
+      if (code == 0 && start >= 0) {
+        for (final entry in text.substring(start + marker.length).split('\u0000')) {
+          final eq = entry.indexOf('=');
+          if (eq <= 0) continue;
+          final key = entry.substring(0, eq);
+          // Shell bookkeeping, not settings.
+          if (const {'SHLVL', 'PWD', 'OLDPWD', '_'}.contains(key)) continue;
+          env[key] = entry.substring(eq + 1);
+        }
+      }
+    } catch (_) {}
+    final path = (env['PATH'] ?? '').split(':').where((s) => s.isNotEmpty).toList();
+    for (final dir in ['/opt/homebrew/bin', '/opt/homebrew/sbin', '/usr/local/bin', p.join(home, '.local', 'bin')]) {
+      if (!path.contains(dir) && dirExists(dir)) path.add(dir);
+    }
+    env['PATH'] = path.join(':');
   }
 
   static bool get isWindows => Platform.isWindows;
@@ -121,6 +159,38 @@ class Sys {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Folders that many programs share: system folders, Homebrew, package
+  /// manager shims, a drive or the home folder. Stackyard never removes one of
+  /// these as a whole, whichever tech pointed at it.
+  static bool isSharedFolder(String path) {
+    final n = p.normalize(p.absolute(path)).toLowerCase();
+    final h = p.normalize(home).toLowerCase();
+    if (p.rootPrefix(n) == n || n == h) return true;
+    bool at(String dir) => n == p.normalize(dir).toLowerCase();
+    bool atOrIn(String dir) => at(dir) || p.isWithin(p.normalize(dir).toLowerCase(), n);
+    if (isWindows) {
+      final windows = env['SystemRoot'] ?? r'C:\Windows';
+      final programData = env['ProgramData'] ?? r'C:\ProgramData';
+      return atOrIn(windows) ||
+          atOrIn(p.join(programData, 'chocolatey')) ||
+          atOrIn(p.join(h, 'scoop')) ||
+          at(programData) ||
+          at(env['ProgramFiles'] ?? r'C:\Program Files') ||
+          at(env['ProgramFiles(x86)'] ?? r'C:\Program Files (x86)') ||
+          at(p.join(h, 'AppData')) ||
+          at(appData) ||
+          at(localAppData) ||
+          at(p.join(h, '.local', 'bin'));
+    }
+    return const ['/usr/bin', '/usr/sbin', '/usr/lib', '/usr/libexec', '/usr/share', '/bin', '/sbin', '/System', '/opt/homebrew', '/opt/local',
+              '/usr/local/bin', '/usr/local/Cellar', '/usr/local/Caskroom', '/usr/local/Homebrew', '/usr/local/opt', '/nix']
+            .any(atOrIn) ||
+        const ['/usr', '/usr/local', '/usr/local/lib', '/usr/local/share', '/opt', '/Applications', '/Library', '/Library/Java/JavaVirtualMachines'].any(at) ||
+        at(p.join(h, 'Library')) ||
+        at(p.join(h, '.local')) ||
+        at(p.join(h, '.local', 'bin'));
   }
 
   /// The fully resolved form of [path], for comparing two paths to one place.
@@ -269,12 +339,24 @@ class Sys {
     return total;
   }
 
+  /// macOS: moves to the Trash with the system's own call (no permission
+  /// prompt). Finder through AppleScript is the fallback.
+  static Future<ProcessResult> _trash(String path) async {
+    try {
+      await const MethodChannel('stackyard/files').invokeMethod<void>('trash', path);
+      return ProcessResult(0, 0, '', '');
+    } on PlatformException catch (e) {
+      return ProcessResult(0, 1, '', e.message ?? 'Couldn\'t move it to the Trash.');
+    } catch (_) {
+      final quoted = path.replaceAll(r'\', r'\').replaceAll('"', r'\"');
+      return Process.run('osascript', ['-e', 'tell application "Finder" to delete POSIX file "$quoted"']);
+    }
+  }
+
   /// Moves a file or folder to the Recycle Bin using the Windows shell,
   /// which shows its own progress and confirmation dialogs.
   static Future<ProcessResult> recycle(String path) {
-    if (!isWindows) {
-      return Process.run('osascript', ['-e', 'tell application "Finder" to delete POSIX file "$path"']);
-    }
+    if (!isWindows) return _trash(path);
     const script = r'''
 Add-Type -AssemblyName Microsoft.VisualBasic
 $t = $env:STACKYARD_TARGET
@@ -334,6 +416,16 @@ if (Test-Path -LiteralPath $t -PathType Container) {
   /// inside (symlinks, junctions) are removed as links; what they point to is
   /// never touched.
   static Future<void> deletePermanently(String path) async {
+    // Antivirus scans hold freshly unpacked programs for a moment, so a
+    // delete right after an install can fail once; try again before giving up.
+    for (final wait in const [0, 1, 2, 4]) {
+      if (wait > 0) await Future<void>.delayed(Duration(seconds: wait));
+      await _deleteOnce(path);
+      if (FileSystemEntity.typeSync(path, followLinks: false) == FileSystemEntityType.notFound) return;
+    }
+  }
+
+  static Future<void> _deleteOnce(String path) async {
     final type = FileSystemEntity.typeSync(path, followLinks: false);
     if (type == FileSystemEntityType.notFound) return;
     try {

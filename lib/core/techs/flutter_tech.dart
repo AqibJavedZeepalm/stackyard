@@ -65,9 +65,15 @@ class FlutterTech extends TechAdapter {
     // A Flutter on PATH that FVM doesn't manage (e.g. C:\src\flutter).
     final onPath = Sys.which('flutter');
     if (onPath != null) {
-      final root = Sys.linkTarget(p.dirname(p.dirname(onPath))) ?? p.dirname(p.dirname(onPath));
+      // Homebrew links bin/flutter from a shared bin folder; follow the link to the SDK.
+      var real = onPath;
+      try {
+        real = File(onPath).resolveSymbolicLinksSync();
+      } catch (_) {}
+      final root = Sys.linkTarget(p.dirname(p.dirname(real))) ?? p.dirname(p.dirname(real));
       final managed = items.any((i) => _samePath(i.path, root)) || p.isWithin(_fvmDir.toLowerCase(), root.toLowerCase());
-      if (!managed && Sys.dirExists(root)) {
+      final isSdk = Sys.dirExists(p.join(root, 'packages', 'flutter_tools'));
+      if (!managed && isSdk) {
         final version = _readSdkVersion(root) ?? 'unknown';
         items.add(_item(name: version, dir: root, label: '$version (standalone)', group: 'Standalone', isGlobal: !items.any((i) => i.isGlobal)));
       }

@@ -1,5 +1,7 @@
 import 'dart:ui' show Color;
 
+import 'sys.dart';
+
 /// Where a tech lives: on the machine, or only inside projects.
 enum TechKind { toolchain, framework }
 
@@ -54,13 +56,14 @@ class InstalledItem {
     this.isBroken = false,
     this.isCache = false,
     this.usageTracked = true,
-    this.removable = true,
-    this.removeHint,
+    bool removable = true,
+    String? removeHint,
     this.installedAt,
     this.lastUsedAt,
     this.details = const {},
     this.extraPaths = const [],
-  });
+  }) : _removable = removable,
+       _removeHint = removeHint;
 
   /// Other paths that belong to this item and go with it on removal.
   final List<String> extraPaths;
@@ -79,9 +82,14 @@ class InstalledItem {
   /// False when we have no reliable way to know who uses this item.
   final bool usageTracked;
 
-  /// False for things installed by an MSI/system installer.
-  final bool removable;
-  final String? removeHint;
+  /// False for things installed by an MSI/system installer, and for anything
+  /// that lives in a folder other programs share (Homebrew, system folders…).
+  bool get removable => _removable && !_shared;
+  final bool _removable;
+  bool get _shared => path.isNotEmpty && Sys.isSharedFolder(path);
+
+  String? get removeHint => _removeHint ?? (_removable && _shared ? 'It lives in $path, which other programs share, so Stackyard won\'t remove it.' : null);
+  final String? _removeHint;
   final DateTime? installedAt;
   final DateTime? lastUsedAt;
   final Map<String, String> details;

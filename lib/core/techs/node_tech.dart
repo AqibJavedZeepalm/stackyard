@@ -64,8 +64,27 @@ class NodeTech extends TechAdapter {
     }
     _nvmBlocked = blockedLink != null;
 
+    // nvm on macOS / Linux: a shell function, so its versions are read from its folder.
+    if (!Sys.isWindows) {
+      final nvmDir = p.join(Sys.env['NVM_DIR'] ?? p.join(Sys.home, '.nvm'), 'versions', 'node');
+      if (Sys.dirExists(nvmDir)) {
+        managers.add('nvm');
+        for (final d in Sys.subdirs(nvmDir)) {
+          final name = p.basename(d.path);
+          if (RegExp(r'^v\d').hasMatch(name)) items.add(_item(name.substring(1), d.path, 'nvm'));
+        }
+      }
+    }
+
     // fnm
-    final fnmDir = Sys.env['FNM_DIR'] ?? p.join(Sys.appData, 'fnm');
+    final fnmDir = Sys.env['FNM_DIR'] ??
+        (Sys.isWindows
+            ? p.join(Sys.appData, 'fnm')
+            : [
+                p.join(Sys.env['XDG_DATA_HOME'] ?? p.join(Sys.home, '.local', 'share'), 'fnm'),
+                p.join(Sys.home, 'Library', 'Application Support', 'fnm'),
+                p.join(Sys.home, '.fnm'),
+              ].firstWhere(Sys.dirExists, orElse: () => p.join(Sys.home, '.local', 'share', 'fnm')));
     final fnmVersions = p.join(fnmDir, 'node-versions');
     final fnmExe = Sys.which('fnm');
     // A fresh fnm has no versions folder yet but can still install.
@@ -83,7 +102,7 @@ class NodeTech extends TechAdapter {
     }
 
     // Volta
-    final voltaNode = p.join(Sys.env['VOLTA_HOME'] ?? p.join(Sys.localAppData, 'Volta'), 'tools', 'image', 'node');
+    final voltaNode = p.join(Sys.env['VOLTA_HOME'] ?? (Sys.isWindows ? p.join(Sys.localAppData, 'Volta') : p.join(Sys.home, '.volta')), 'tools', 'image', 'node');
     if (Sys.dirExists(voltaNode)) {
       managers.add('Volta');
       final voltaExe = Sys.which('volta');
@@ -106,11 +125,16 @@ class NodeTech extends TechAdapter {
       active = (await Sys.run(nodeOnPath, ['-v']))?.replaceFirst('v', '');
       final dir = p.dirname(nodeOnPath);
       final realDir = Sys.linkTarget(dir) ?? dir;
-      final match = items.where((i) => p.equals(i.path.toLowerCase(), realDir.toLowerCase())).firstOrNull;
+      // It may sit inside a version's folder (fnm: <version>/installation, nvm on macOS: <version>/bin).
+      final match = items.where((i) => p.equals(i.path.toLowerCase(), realDir.toLowerCase()) || p.isWithin(i.path.toLowerCase(), realDir.toLowerCase())).firstOrNull;
       if (match == null && active != null) {
         final inProgramFiles = realDir.toLowerCase().contains('program files');
         // The official installer's copy is removed with its own uninstaller, not the Recycle Bin.
         final viaInstaller = inProgramFiles && _nodeUninstall() != null;
+        // Only a folder that is a whole Node install (node, npm and its modules
+        // together) can go; never a folder of other programs' shims.
+        final wholeInstall = Sys.dirExists(p.join(realDir, 'node_modules', 'npm')) || Sys.dirExists(p.join(p.dirname(realDir), 'lib', 'node_modules', 'npm'));
+        final homebrew = !Sys.isWindows && (realDir.startsWith('/opt/homebrew') || realDir.startsWith('/usr/local'));
         items.add(
           _systemNode = InstalledItem(
             id: 'node:${realDir.toLowerCase()}',
@@ -119,10 +143,16 @@ class NodeTech extends TechAdapter {
             path: realDir,
             group: 'System',
             isGlobal: true,
-            removable: !inProgramFiles || viaInstaller,
-            removeHint: inProgramFiles && !viaInstaller ? 'Installed with the Node.js installer. Remove it from Windows Settings → Apps.' : null,
+            removable: viaInstaller || (!inProgramFiles && wholeInstall && !homebrew),
+            removeHint: homebrew
+                ? 'Installed with Homebrew, which manages its files. Remove it with Homebrew.'
+                : inProgramFiles && !viaInstaller
+                ? 'Installed with the Node.js installer. Remove it from Windows Settings → Apps.'
+                : !inProgramFiles && !wholeInstall
+                ? '$realDir holds other programs too, so Stackyard won\'t remove it.'
+                : null,
             installedAt: Sys.modified(realDir),
-            details: {'Source': 'Node.js installer', 'Binary': nodeOnPath},
+            details: {'Source': homebrew ? 'Homebrew' : 'Node.js installer', 'Binary': nodeOnPath},
           ),
         );
       }
@@ -314,7 +344,7 @@ class NodeTech extends TechAdapter {
 
   @override
   PlannedChange? planInstall(String version) {
-    if (_managerExe == null && _systemNode != null) {
+    if (_managerExe == null && _systemNode != null && Sys.isWindows) {
       final current = _systemNode!.version;
       final release = _releases?.where((r) => r.version == version).firstOrNull;
       final isLatest = release?.isLatest ?? false;
@@ -338,6 +368,19 @@ class NodeTech extends TechAdapter {
           ),
         ],
         warning: 'Replaces Node.js $current. Your projects and global npm packages stay.',
+      );
+    }
+    if (_managerExe == null && !Sys.isWindows) {
+      // macOS: fnm from Homebrew, with its default version on PATH.
+      final brew = Sys.which('brew');
+      if (brew == null) return null;
+      final fnmDir = Sys.env['FNM_DIR'] ?? p.join(Sys.home, '.local', 'share', 'fnm');
+      return PlannedChange(
+        title: 'Install a Node version manager',
+        commands: [CommandSpec(title: 'Install fnm with Homebrew', executable: brew, arguments: ['install', 'fnm'])],
+        env: [EnvChange.set('FNM_DIR', fnmDir), EnvChange.prependPath(p.join(fnmDir, 'aliases', 'default', 'bin'))],
+        envBlock: 'fnm',
+        warning: 'Stackyard rescans when it\'s done, and you can then install Node versions here.',
       );
     }
     if (_managerExe == null) {

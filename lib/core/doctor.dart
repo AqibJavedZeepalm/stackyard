@@ -292,7 +292,13 @@ class Doctor {
 
   /// The JDK Flutter uses for Android builds, in Flutter's own order of preference.
   static ({String? home, String from}) _flutterJdk() {
-    final settingsFile = Sys.isWindows ? p.join(Sys.appData, '.flutter_settings') : p.join(Sys.home, '.flutter_settings');
+    // Flutter's own order: the legacy ~/.flutter_settings if it exists, else the XDG config folder.
+    final settingsFile = Sys.isWindows
+        ? p.join(Sys.appData, '.flutter_settings')
+        : [
+            p.join(Sys.home, '.flutter_settings'),
+            p.join(Sys.env['XDG_CONFIG_HOME'] ?? p.join(Sys.home, '.config'), 'flutter', 'settings'),
+          ].firstWhere(Sys.fileExists, orElse: () => p.join(Sys.home, '.config', 'flutter', 'settings'));
     try {
       final dir = (jsonDecode(File(settingsFile).readAsStringSync()) as Map)['jdk-dir'];
       if (dir is String && Sys.dirExists(dir)) return (home: dir, from: 'flutter config');

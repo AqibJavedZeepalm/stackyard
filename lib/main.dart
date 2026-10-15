@@ -41,13 +41,14 @@ Future<Widget> bootstrap({bool hidden = false, bool tray = false}) async {
   }
 
   windowManager.waitUntilReadyToShow(
-    const WindowOptions(
+    WindowOptions(
       size: Size(1180, 780),
       minimumSize: Size(720, 520),
       center: true,
       title: 'Stackyard',
       titleBarStyle: TitleBarStyle.hidden,
-      windowButtonVisibility: false,
+      // macOS keeps its own traffic-light buttons; Windows draws Fluent ones in the title bar.
+      windowButtonVisibility: Platform.isMacOS,
     ),
     () async {
       if (hidden) return;

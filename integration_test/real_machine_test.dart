@@ -86,11 +86,8 @@ void main() {
     expect(state.allItems.where((e) => e.$2.path.isNotEmpty && e.$2.sizeBytes == null), isEmpty,
         reason: 'every size should be measured');
 
-    // Sidebar holds exactly the detected techs.
-    for (final t in state.techs) {
-      expect(find.text(t.info.name), findsWidgets, reason: 'sidebar tile for ${t.info.name}');
-    }
-
+    // The sidebar only builds the entries that fit on screen, so each tech is
+    // checked by opening its page instead.
     for (final t in state.techs) {
       shell.open(t.id);
       await settle(tester);
@@ -99,9 +96,10 @@ void main() {
           'latest=${t.snapshot.latest} notes=${t.snapshot.notes.length}');
       await shot(tester, 'tech-${t.id.replaceAll(RegExp(r'[^a-z0-9]'), '-')}');
     }
-    for (final id in ['overview', 'activity', 'settings']) {
+    for (final id in ['overview', 'market', 'projects', 'emulators', 'activity', 'settings']) {
       shell.open(id);
-      await settle(tester);
+      await settle(tester, id == 'market' ? 4000 : 900);
+      print('PAGE $id');
       await shot(tester, id);
     }
 
