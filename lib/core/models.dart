@@ -158,7 +158,8 @@ class Project {
   /// npm package -> version
   final Map<String, DepVersion> deps = {};
 
-  /// Values read from build files: compileSdk, ndkVersion, gradle.
+  /// Values read from build files: compileSdk, ndkVersion, gradle, and global.json's
+  /// rollForward and allowPrerelease.
   final Map<String, String> buildInfo = {};
 
   /// 'npm', 'yarn', 'pnpm', 'bun'

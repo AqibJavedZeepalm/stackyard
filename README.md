@@ -36,7 +36,7 @@ Version managers like FVM, nvm, pyenv and SDKMAN are great at installing version
 | Gradle | `~/.gradle/wrapper/dists`, caches | `gradle-wrapper.properties` |
 | Java | Program Files vendors, `/Library/Java/JavaVirtualMachines`, Homebrew, `~/.jdks`, SDKMAN, Android Studio JBR | `.java-version` |
 | Python | `py` launcher, pyenv / pyenv-win, uv, python.org, Homebrew and Microsoft Store installs | `.python-version`, `requires-python` |
-| .NET SDK | `dotnet --list-sdks` | `global.json` |
+| .NET SDK | `dotnet --list-sdks` | `global.json` `version`, `rollForward` and `allowPrerelease`, resolved the way `dotnet` picks an SDK; no `global.json` uses the newest |
 | React, React Native, Expo, Next.js, Vue, Nuxt, Angular, Svelte, Astro, Electron, Vite, TypeScript | Each project's `node_modules` | `package.json` |
 
 Installs use each tech's own manager (FVM, nvm / fnm / Volta, `sdkmanager`). Tools without one are installed with `winget` on Windows and Homebrew on macOS.

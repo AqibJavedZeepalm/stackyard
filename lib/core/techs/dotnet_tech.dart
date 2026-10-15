@@ -74,8 +74,35 @@ class DotnetTech extends TechAdapter {
     for (final project in ctx.projects.where((pr) => pr.types.contains('dotnet'))) {
       snap.projects.add(project);
       final pin = project.pins['dotnet'];
-      final target = pin == null ? items.first : items.where((i) => i.version == bestMatch(items.map((e) => e.version), pin.raw)).firstOrNull;
-      target?.usedBy.add(project.toUsage(note: pin == null ? 'No global.json, uses newest' : null));
+      final rollForward = project.buildInfo['rollForward'];
+      final allowPrerelease = project.buildInfo['allowPrerelease'];
+      final version = resolveDotnetSdk(
+        items.map((i) => i.version),
+        pin?.raw,
+        rollForward: rollForward,
+        allowPrerelease: allowPrerelease == null ? null : allowPrerelease == 'true',
+      );
+      final target = items.where((i) => i.version == version).firstOrNull;
+      if (target != null) {
+        final asks = [?pin?.raw, if (rollForward != null) 'rollForward $rollForward', if (allowPrerelease != null) 'allowPrerelease $allowPrerelease'];
+        target.usedBy.add(project.toUsage(note: asks.isEmpty ? 'No global.json, uses newest' : 'global.json ${asks.join(', ')} → $version'));
+      } else if (pin != null) {
+        final policy = rollForward?.toLowerCase() ?? 'patch';
+        final later = switch (policy) {
+          'patch' || 'latestpatch' => ' (or a later patch)',
+          'feature' || 'latestfeature' => ' (or a later feature band)',
+          'minor' || 'latestminor' => ' (or a later minor version)',
+          'major' || 'latestmajor' => ' (or a later version)',
+          _ => '',
+        };
+        // The installers bring the newest SDK of a major version, which only fits
+        // when global.json lets dotnet move past the requested feature band.
+        final crossesBands = ['feature', 'minor', 'major'].any(policy.contains);
+        final cmd = crossesBands ? Installers.dotnetSdk(pin.raw) : null;
+        snap.problem('${project.name} needs .NET SDK ${pin.raw}$later, which isn\'t installed.', [
+          if (cmd != null) NoteFix(cmd.title, PlannedChange(title: cmd.title, commands: [cmd]), recommended: true),
+        ]);
+      }
     }
     return snap;
   }
@@ -102,4 +129,48 @@ class DotnetTech extends TechAdapter {
       warning: item.usedBy.isEmpty ? null : '${item.usedBy.length} project(s) build with this SDK.',
     );
   }
+}
+
+/// The SDK `dotnet` picks from [installed] for a global.json that asks for
+/// [version] (null when it names none), or null when dotnet would fail.
+/// Follows dotnet's own resolver: SDK versions are x.y.znn, where z is the
+/// feature band and nn the patch.
+/// https://learn.microsoft.com/dotnet/core/tools/global-json#matching-rules
+String? resolveDotnetSdk(Iterable<String> installed, String? version, {String? rollForward, bool? allowPrerelease}) {
+  final want = version == null ? null : Ver.tryParse(version);
+  // dotnet rejects anything but a full version like 8.0.302.
+  if (version != null && (want == null || want.parts.length < 3)) return null;
+  final policy = (rollForward ?? (want == null ? 'latestMajor' : 'patch')).toLowerCase();
+  // Prereleases count unless global.json says no, and always when it asks for one.
+  final prerelease = (allowPrerelease ?? true) || (want?.pre.isNotEmpty ?? false);
+  final sdks = [
+    for (final s in installed)
+      if (Ver.tryParse(s) case final v? when prerelease || v.pre.isEmpty) (s, v),
+  ];
+  int band(Ver v) => v.part(2) ~/ 100;
+  bool sameBand(Ver a, Ver b) => a.part(0) == b.part(0) && a.part(1) == b.part(1) && band(a) == band(b);
+  String? newest(Iterable<(String, Ver)> list) => list.isEmpty ? null : list.reduce((a, b) => a.$2 >= b.$2 ? a : b).$1;
+
+  // No version: dotnet ignores the policy and takes the newest SDK (checked against dotnet 8 and 9).
+  if (want == null) return newest(sdks);
+  if (policy == 'patch' || policy == 'disable') {
+    final exact = sdks.where((s) => s.$2.compareTo(want) == 0).firstOrNull;
+    if (exact != null || policy == 'disable') return exact?.$1;
+  }
+  final fits = sdks.where((s) {
+    final v = s.$2;
+    if (v < want) return false;
+    return switch (policy) {
+      'patch' || 'latestpatch' => sameBand(v, want),
+      'feature' || 'latestfeature' => v.part(0) == want.part(0) && v.part(1) == want.part(1),
+      'minor' || 'latestminor' => v.part(0) == want.part(0),
+      'major' || 'latestmajor' => true,
+      _ => false,
+    };
+  }).toList();
+  if (fits.isEmpty) return null;
+  if (policy.startsWith('latest') || policy == 'patch') return newest(fits);
+  // feature, minor and major take the nearest band that has an SDK, then its newest patch.
+  final nearest = fits.reduce((a, b) => a.$2 <= b.$2 ? a : b).$2;
+  return newest(fits.where((s) => sameBand(s.$2, nearest)));
 }

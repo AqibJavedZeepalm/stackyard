@@ -291,9 +291,11 @@ class ProjectScanner {
 
   static void _parseDotnet(Project project) {
     project.types.add('dotnet');
-    final global = _json(p.join(project.path, 'global.json'));
-    final v = (global?['sdk'] is Map) ? global!['sdk']['version'] : null;
-    if (v is String) project.pins['dotnet'] = Pin(raw: v, source: 'global.json');
+    final sdk = _json(p.join(project.path, 'global.json'))?['sdk'];
+    if (sdk is! Map) return;
+    if (sdk['version'] case final String v) project.pins['dotnet'] = Pin(raw: v, source: 'global.json');
+    if (sdk['rollForward'] case final String r) project.buildInfo['rollForward'] = r;
+    if (sdk['allowPrerelease'] case final bool a) project.buildInfo['allowPrerelease'] = '$a';
   }
 
   static void _parseJava(Project project) {
