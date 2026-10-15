@@ -5,6 +5,12 @@ Releases are built on GitHub by `.github/workflows/release.yml`:
 - **Windows:** `Stackyard-Setup-<version>.exe`, a per-user installer (no administrator prompt) with Start menu entry, optional desktop shortcut and an uninstaller in Settings → Apps.
 - **macOS:** `Stackyard-<version>.dmg`.
 
+## Where the signing secrets live
+
+Signing secrets are **environment secrets** in the `release` environment, never repository secrets. That environment only serves `v*` tags and waits for the owner to approve each run, so no other workflow, branch or pull request can read them. Every action in the workflows is pinned to an exact commit, so a hijacked action tag can't run inside a signing job.
+
+If a secret might have leaked: revoke the Developer ID certificate in the Apple Developer portal and the app-specific password at account.apple.com, rotate the SignPath API token, then replace the secrets.
+
 ## Make a release
 
 ```bash
@@ -37,7 +43,7 @@ Steps:
    - Two artifact configurations:
      - `app`: a ZIP artifact; sign `stackyard.exe` and every `*.dll` in it with Authenticode.
      - `installer`: a ZIP artifact containing one `Stackyard-Setup-*.exe`; sign it with Authenticode.
-3. In GitHub → Settings → Secrets and variables → Actions, add:
+3. In GitHub → Settings → Environments → **release** → Environment secrets, add:
    - `SIGNPATH_API_TOKEN`: an API token for a SignPath CI user with submitter rights on the project.
    - `SIGNPATH_ORGANIZATION_ID`: shown in SignPath's organization settings.
 4. Add this section to the README, replacing the team names with real ones:
@@ -55,7 +61,7 @@ You need a **Developer ID Application** certificate from your Apple Developer ac
 
 1. In Xcode → Settings → Accounts → Manage Certificates, create a "Developer ID Application" certificate. Then, in Keychain Access, export it with its private key as a `.p12` file, with a password.
 2. Create an app-specific password at <https://account.apple.com> → Sign-In and Security → App-Specific Passwords.
-3. Add these GitHub secrets:
+3. In GitHub → Settings → Environments → **release** → Environment secrets, add:
 
 | Secret | Value |
 |---|---|

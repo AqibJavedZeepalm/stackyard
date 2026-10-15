@@ -128,6 +128,15 @@ lib/
   ui/              Fluent UI: shell, pages, dialogs, onboarding, motion, report a problem
 ```
 
+## Code signing policy
+
+Windows releases: free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). macOS releases are signed with the maintainer's Apple Developer ID and notarized by Apple.
+
+- Committers and reviewers: [members of this repository](https://github.com/AqibJavedZeepalm/stackyard/graphs/contributors)
+- Approvers: the repository owner, [Aqib Javed](https://github.com/AqibJavedZeepalm)
+
+Every release is built from this repository's source by GitHub Actions ([release.yml](.github/workflows/release.yml)); nothing is built or signed on a personal machine.
+
 ## Privacy
 
 Everything runs locally. Stackyard only goes online to check for new versions (Flutter releases, nodejs.org, the npm registry…) and to download the tools you choose to install. No accounts, no telemetry. "Report a problem" opens a GitHub issue in your browser with your app and OS versions filled in; nothing is sent until you submit it there.

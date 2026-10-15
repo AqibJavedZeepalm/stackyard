@@ -21,10 +21,13 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    # Signing secrets live in the "release" environment: handed out only to
+    # version tags, and only after the owner approves the run.
+    environment: release
     env:
       SIGN: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Version and Flutter version
         shell: pwsh
@@ -33,7 +36,7 @@ jobs:
           "VERSION=$v" >> $env:GITHUB_ENV
           "FLUTTER=$((Get-Content .fvmrc | ConvertFrom-Json).flutter)" >> $env:GITHUB_ENV
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.FLUTTER }}
           channel: stable
@@ -47,13 +50,13 @@ jobs:
       - name: Upload app for signing
         if: env.SIGN == 'true'
         id: app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: app-unsigned
           path: build/windows/x64/runner/Release
       - name: Sign app
         if: env.SIGN == 'true'
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@ced31329c0317e779dad2eec2a7c3bb46ea1343e # v1
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
@@ -75,13 +78,13 @@ jobs:
       - name: Upload installer for signing
         if: env.SIGN == 'true'
         id: setup
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: installer-unsigned
           path: dist/Stackyard-Setup-${{ env.VERSION }}.exe
       - name: Sign installer
         if: env.SIGN == 'true'
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@ced31329c0317e779dad2eec2a7c3bb46ea1343e # v1
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
@@ -92,23 +95,26 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Stackyard-Setup-${{ env.VERSION }}
           path: dist/Stackyard-Setup-${{ env.VERSION }}.exe
       - name: Attach to draft release
         if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           draft: true
           files: dist/Stackyard-Setup-${{ env.VERSION }}.exe
 
   macos:
     runs-on: macos-latest
+    # Signing secrets live in the "release" environment: handed out only to
+    # version tags, and only after the owner approves the run.
+    environment: release
     env:
       SIGN: ${{ secrets.MACOS_CERT_P12 != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Version and Flutter version
         run: |
@@ -116,7 +122,7 @@ jobs:
           echo "VERSION=$v" >> "$GITHUB_ENV"
           echo "FLUTTER=$(python3 -c 'import json;print(json.load(open(".fvmrc"))["flutter"])')" >> "$GITHUB_ENV"
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.FLUTTER }}
           channel: stable
@@ -168,13 +174,13 @@ jobs:
             --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
           xcrun stapler staple "dist/Stackyard-$VERSION.dmg"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Stackyard-${{ env.VERSION }}-macOS
           path: dist/Stackyard-${{ env.VERSION }}.dmg
       - name: Attach to draft release
         if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           draft: true
           files: dist/Stackyard-${{ env.VERSION }}.dmg
