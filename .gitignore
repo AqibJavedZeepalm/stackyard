@@ -51,3 +51,6 @@ app.*.map.json
 /screenshots/
 /OVERNIGHT.md
 /WAKE_UP_REPORT.md
+
+# FVM
+.fvm/

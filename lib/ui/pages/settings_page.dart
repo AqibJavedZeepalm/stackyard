@@ -7,6 +7,7 @@ import '../../core/sys.dart';
 import '../../state/app_state.dart';
 import '../../state/settings.dart';
 import '../motion.dart';
+import '../report.dart';
 import '../stack_dialogs.dart';
 import '../widgets.dart';
 
@@ -126,14 +127,15 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
         ),
-        if (Sys.isWindows)
-          row(
-            11,
-            icon: WindowsIcons.personalize,
-            title: 'Mica background',
-            subtitle: 'Let your wallpaper tint the window, like other Windows 11 apps',
-            trailing: ToggleSwitch(checked: settings.mica, onChanged: (v) => settings.update((s) => s.mica = v)),
-          ),
+        row(
+          11,
+          icon: WindowsIcons.personalize,
+          title: 'Glass',
+          subtitle: Sys.isWindows
+              ? 'How much your wallpaper tints the window (Mica), like other Windows 11 apps. 0% is solid.'
+              : 'How much the desktop shows through the window, like Finder and Mail. 0% is solid.',
+          trailing: const GlassSlider(),
+        ),
         row(
           12,
           icon: WindowsIcons.speed_high,
@@ -174,7 +176,7 @@ class SettingsPage extends StatelessWidget {
           icon: WindowsIcons.power_button,
           title: Sys.isWindows ? 'Start with Windows' : 'Open at login',
           subtitle: 'Starts quietly in the ${Sys.isWindows ? 'tray' : 'menu bar'}, without opening the window.',
-          trailing: const _AutoStartToggle(),
+          trailing: const AutoStartToggle(),
         ),
         const SectionTitle('Get tools'),
         row(
@@ -209,6 +211,13 @@ class SettingsPage extends StatelessWidget {
         ),
         const SectionTitle('About'),
         row(
+          14,
+          icon: WindowsIcons.feedback,
+          title: 'Report a problem',
+          subtitle: 'Opens a GitHub issue with your Stackyard and ${Sys.isWindows ? 'Windows' : 'macOS'} versions filled in. Nothing is sent until you submit it.',
+          trailing: Button(onPressed: reportProblem, child: const Text('Report…')),
+        ),
+        row(
           13,
           icon: WindowsIcons.info,
           title: 'Stackyard ${const String.fromEnvironment('APP_VERSION', defaultValue: 'dev')}',
@@ -221,14 +230,14 @@ class SettingsPage extends StatelessWidget {
 }
 
 /// The sign-in setting lives in the system (registry / LaunchAgent), so it's read from there.
-class _AutoStartToggle extends StatefulWidget {
-  const _AutoStartToggle();
+class AutoStartToggle extends StatefulWidget {
+  const AutoStartToggle({super.key});
 
   @override
-  State<_AutoStartToggle> createState() => _AutoStartToggleState();
+  State<AutoStartToggle> createState() => _AutoStartToggleState();
 }
 
-class _AutoStartToggleState extends State<_AutoStartToggle> {
+class _AutoStartToggleState extends State<AutoStartToggle> {
   bool? _on;
 
   @override
@@ -251,4 +260,33 @@ class _AutoStartToggleState extends State<_AutoStartToggle> {
             if (mounted) setState(() => _on = actual);
           },
   );
+}
+
+/// How much glass the window has, 0–100; the window updates while you drag.
+class GlassSlider extends StatelessWidget {
+  const GlassSlider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<Settings>();
+    final label = settings.glass == 0 ? 'Off' : '${settings.glass}%';
+    return SizedBox(
+      width: 240,
+      child: Row(
+        children: [
+          Expanded(
+            child: Slider(
+              value: settings.glass.toDouble(),
+              max: 100,
+              divisions: 10,
+              label: label,
+              onChanged: (v) => settings.preview((s) => s.glass = v.round()),
+              onChangeEnd: (v) => settings.update((s) => s.glass = v.round()),
+            ),
+          ),
+          SizedBox(width: 44, child: Text(label, textAlign: TextAlign.end)),
+        ],
+      ),
+    );
+  }
 }

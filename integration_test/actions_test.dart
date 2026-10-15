@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:provider/provider.dart';
 import 'package:stackyard/core/models.dart';
+import 'package:stackyard/core/sys.dart';
 import 'package:stackyard/main.dart';
 import 'package:stackyard/state/app_state.dart';
 import 'package:stackyard/state/jobs.dart';
@@ -140,7 +141,9 @@ void main() {
     // ---- Make it global, verify, restore the original global ----
     if (runs('flutter-global')) {
       final original = tech('flutter').global!.version;
-      print('GLOBAL original=$original');
+      // "3.29.3 (standalone)" for an SDK FVM doesn't manage.
+      final originalTitle = tech('flutter').global!.title;
+      print('GLOBAL original=$originalTitle');
       shell.open('flutter');
       await settle(tester);
       await expandRow(tester, flutterTest);
@@ -149,7 +152,7 @@ void main() {
       expect((await finishJob(tester)).status, JobStatus.done);
       expect(tech('flutter').global?.version, flutterTest);
       await shot(tester, 'flutter-global-changed');
-      await expandRow(tester, original);
+      await expandRow(tester, originalTitle);
       await tapText(tester, 'Make global');
       await tapText(tester, 'Run');
       expect((await finishJob(tester)).status, JobStatus.done);
@@ -183,7 +186,7 @@ void main() {
         await shot(tester, '$techId-remove-expanded');
         await tapText(tester, 'Remove');
         await shot(tester, '$techId-remove-confirm');
-        await tapText(tester, 'Move to Recycle Bin');
+        await tapText(tester, 'Move to ${Sys.trashName}');
         await settle(tester, 1500);
         await shot(tester, '$techId-remove-collapsing');
         expect((await finishJob(tester)).status, JobStatus.done);

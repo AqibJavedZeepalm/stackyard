@@ -122,15 +122,24 @@ void main() {
   test('macOS: one marked block per tool in the shell profile, replaced and removed cleanly', () async {
     final home = Directory(p.join(tmp.path, 'home'))..createSync();
     File(p.join(home.path, '.zprofile')).writeAsStringSync('export EDITOR=vim\n');
+    // A stand-in for launchd's environment, so the test never changes the real one.
+    final launchd = <String, String>{};
+    Future<String> launchctl(List<String> a) async => switch (a[0]) {
+      'setenv' => (launchd[a[1]] = a[2]),
+      'unsetenv' => (launchd.remove(a[1]) ?? ''),
+      _ => launchd[a[1]] ?? '',
+    };
     await EnvWriter.applyUnix(
       const [EnvChange.set('JAVA_HOME', '/u/sdks/java/17'), EnvChange.prependPath('/u/sdks/java/17/bin')],
       block: 'java',
       home: home.path,
+      launchctl: launchctl,
     );
     await EnvWriter.applyUnix(
       const [EnvChange.set('JAVA_HOME', '/u/sdks/java/21'), EnvChange.prependPath('/u/sdks/java/21/bin')],
       block: 'java',
       home: home.path,
+      launchctl: launchctl,
     );
     var text = File(p.join(home.path, '.zprofile')).readAsStringSync();
     expect(text, startsWith('export EDITOR=vim\n'));
@@ -138,9 +147,22 @@ void main() {
     expect(text, contains('export JAVA_HOME="/u/sdks/java/21"'));
     expect(text, isNot(contains('java/17')));
 
-    await EnvWriter.applyUnix(const [EnvChange.dropPathUnder('/u/sdks/java/21')], block: 'java', home: home.path);
+    // Apps started from the Dock: set now (launchctl) and at every login (a LaunchAgent).
+    final agent = File(p.join(home.path, 'Library', 'LaunchAgents', 'dev.stackyard.env.plist'));
+    expect(agent.readAsStringSync(), contains('launchctl setenv JAVA_HOME "/u/sdks/java/21"'));
+    expect(agent.readAsStringSync(), isNot(contains('PATH')));
+    expect(launchd['JAVA_HOME'], '/u/sdks/java/21');
+
+    await EnvWriter.applyUnix(
+      const [EnvChange.dropPathUnder('/u/sdks/java/21'), EnvChange.removeIfUnder('JAVA_HOME', '/u/sdks/java/21')],
+      block: 'java',
+      home: home.path,
+      launchctl: launchctl,
+    );
     text = File(p.join(home.path, '.zprofile')).readAsStringSync();
     expect(text, isNot(contains('stackyard')));
     expect(text, contains('export EDITOR=vim'));
+    expect(agent.existsSync(), isFalse, reason: 'no variables left to set at login');
+    expect(launchd.containsKey('JAVA_HOME'), isFalse);
   });
 }

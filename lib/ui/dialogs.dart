@@ -75,7 +75,7 @@ Future<PlannedChange?> _confirm(BuildContext context, PlannedChange change, {int
         final theme = FluentTheme.of(context);
         final mono = TextStyle(
           fontFamily: 'Cascadia Mono',
-          fontFamilyFallback: const ['Consolas'],
+          fontFamilyFallback: const ['Consolas', 'SF Mono', 'Menlo'],
           fontSize: 12.5,
           color: theme.resources.textFillColorPrimary,
         );

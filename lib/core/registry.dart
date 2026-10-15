@@ -10,6 +10,7 @@ import 'techs/java_tech.dart';
 import 'techs/node_tech.dart';
 import 'techs/python_tech.dart';
 import 'techs/tech.dart';
+import 'techs/xcode_tech.dart';
 
 /// Every tech Stackyard knows about, in sidebar order.
 ///
@@ -19,6 +20,7 @@ List<TechAdapter> buildRegistry() => [
   FlutterTech(),
   NodeTech(),
   AndroidTech(),
+  XcodeTech(),
   GradleTech(),
   JavaTech(),
   PythonTech(),

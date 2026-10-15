@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -114,20 +116,24 @@ class Pill extends StatelessWidget {
 }
 
 /// A Windows 11 "settings card": layer fill, hairline stroke, hover tint.
+/// Card corners: Windows 11 uses 6 px, macOS cards are rounder.
+final double cardRadius = Platform.isMacOS ? 10 : 6;
+
 class SurfaceCard extends StatefulWidget {
   const SurfaceCard({
     super.key,
     required this.child,
     this.onPressed,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    this.radius = 6,
+    this.radius,
     this.highlight,
   });
 
   final Widget child;
   final VoidCallback? onPressed;
   final EdgeInsets padding;
-  final double radius;
+  /// Defaults to the platform's card corner (macOS cards are rounder).
+  final double? radius;
   final Color? highlight;
 
   @override
@@ -163,16 +169,22 @@ class _SurfaceCardState extends State<SurfaceCard> {
         onTapCancel: interactive ? () => setState(() => _down = false) : null,
         onTapUp: interactive ? (_) => setState(() => _down = false) : null,
         onTap: widget.onPressed,
-        child: AnimatedContainer(
+        // A pressed card sinks a little, like a macOS control.
+        child: AnimatedScale(
+          scale: _down ? 0.985 : 1,
           duration: Motion.of(context, Motion.fast),
           curve: Motion.move,
-          padding: widget.padding,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(widget.radius),
-            border: Border.all(color: widget.highlight ?? r.cardStrokeColorDefault),
+          child: AnimatedContainer(
+            duration: Motion.of(context, Motion.fast),
+            curve: Motion.move,
+            padding: widget.padding,
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(widget.radius ?? cardRadius),
+              border: Border.all(color: widget.highlight ?? r.cardStrokeColorDefault),
+            ),
+            child: widget.child,
           ),
-          child: widget.child,
         ),
       ),
     );
@@ -192,7 +204,7 @@ class GroupCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: r.cardBackgroundFillColorDefault,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(cardRadius + 2),
         border: Border.all(color: r.cardStrokeColorDefault),
       ),
       child: Column(
@@ -424,4 +436,36 @@ String timeAgo(DateTime? t) {
   if (d.inDays >= 1) return '${d.inDays} day${d.inDays == 1 ? '' : 's'} ago';
   if (d.inHours >= 1) return '${d.inHours} hr ago';
   return 'Just now';
+}
+
+/// Stackyard's mark: three stacked bars in the accent color.
+class StackyardMark extends StatelessWidget {
+  const StackyardMark({super.key, this.size = 16});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FluentTheme.of(context);
+    final accent = theme.accentColor.defaultBrushFor(theme.brightness);
+    final u = size / 16;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (final (i, w) in [10.0, 14.0, 16.0].indexed)
+            Container(
+              width: w * u,
+              height: 3.5 * u,
+              margin: EdgeInsets.only(top: i == 0 ? 0 : 1.5 * u),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.55 + i * 0.2),
+                borderRadius: BorderRadius.circular(u),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

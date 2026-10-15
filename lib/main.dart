@@ -10,6 +10,8 @@ import 'core/autostart.dart';
 import 'state/app_state.dart';
 import 'state/background.dart';
 import 'state/settings.dart';
+import 'ui/motion.dart';
+import 'ui/onboarding.dart';
 import 'ui/shell.dart';
 
 Future<void> main(List<String> args) async {
@@ -97,23 +99,32 @@ class _StackyardAppState extends State<StackyardApp> with WidgetsBindingObserver
   Widget build(BuildContext context) {
     final settings = context.watch<Settings>();
     final accent = SystemTheme.accentColor.accent.toAccentColor();
-    final mica = settings.mica && Platform.isWindows;
+    // Mica on Windows 11, the sidebar material (vibrancy) on macOS.
+    final glass = Platform.isWindows || Platform.isMacOS ? settings.glass / 100 : 0.0;
+    final mica = glass > 0;
 
     WidgetsBinding.instance.addPostFrameCallback((_) => applyWindowEffect(settings));
 
-    FluentThemeData theme(Brightness b) => FluentThemeData(
-      brightness: b,
-      accentColor: accent,
-      visualDensity: VisualDensity.standard,
-      focusTheme: const FocusThemeData(glowFactor: 0),
-      micaBackgroundColor: mica ? Colors.transparent : null,
-      navigationPaneTheme: NavigationPaneThemeData(
-        backgroundColor: mica ? Colors.transparent : null,
+    FluentThemeData theme(Brightness b) {
+      final dark = b == Brightness.dark;
+      final base = Platform.isMacOS ? (dark ? const Color(0xFF242424) : const Color(0xFFFAFAFA)) : (dark ? const Color(0xFF202020) : const Color(0xFFF3F3F3));
+      return FluentThemeData(
+        brightness: b,
+        accentColor: accent,
+        visualDensity: VisualDensity.standard,
+        focusTheme: const FocusThemeData(glowFactor: 0),
+        micaBackgroundColor: mica ? Colors.transparent : null,
+        // The sidebar shows the most glass; the content stays mostly solid so text reads
+        // well (at 100%, 70% opaque), like Finder and Mail.
+        scaffoldBackgroundColor: mica ? base.withValues(alpha: 1 - 0.3 * glass) : null,
+        navigationPaneTheme: NavigationPaneThemeData(
+          backgroundColor: mica ? base.withValues(alpha: 0.85 * (1 - glass)) : null,
         // fluent_ui's default (12 + 16 + 12 = 40 px) overflows the 38 px item on the
         // first frame of the pane opening; 2 px less on the end side fits.
-        iconPadding: const EdgeInsetsDirectional.only(start: 12, end: 10),
-      ),
-    );
+          iconPadding: const EdgeInsetsDirectional.only(start: 12, end: 10),
+        ),
+      );
+    }
 
     return FluentApp(
       title: 'Stackyard',
@@ -121,21 +132,31 @@ class _StackyardAppState extends State<StackyardApp> with WidgetsBindingObserver
       themeMode: settings.themeMode,
       theme: theme(Brightness.light),
       darkTheme: theme(Brightness.dark),
-      home: const Shell(),
+      // First run: onboarding picks the project folders, then the app scans them.
+      home: SmoothSwitcher(alignment: Alignment.center, child: settings.onboarded ? const Shell(key: ValueKey('shell')) : const Onboarding(key: ValueKey('onboarding'))),
     );
   }
 }
 
 String? _appliedEffect;
 
-/// Applies Mica (or turns it off) to match the theme; skips repeat calls.
+/// Applies Mica / macOS vibrancy (or turns it off) to match the theme; skips repeat calls.
 Future<void> applyWindowEffect(Settings settings, {bool force = false}) async {
-  if (!Platform.isWindows) return;
+  if (!Platform.isWindows && !Platform.isMacOS) return;
   final platformDark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
   final dark = settings.themeMode == ThemeMode.dark || (settings.themeMode == ThemeMode.system && platformDark);
   final key = '${settings.mica}-$dark';
   if (!force && key == _appliedEffect) return;
   _appliedEffect = key;
+  if (Platform.isMacOS) {
+    // The material follows the app's theme, not just the system's.
+    await acrylic.Window.overrideMacOSBrightness(dark: dark);
+    await acrylic.Window.setEffect(
+      effect: settings.mica ? acrylic.WindowEffect.sidebar : acrylic.WindowEffect.windowBackground,
+      dark: dark,
+    );
+    return;
+  }
   await acrylic.Window.setEffect(
     effect: settings.mica ? acrylic.WindowEffect.mica : acrylic.WindowEffect.solid,
     color: settings.mica ? Colors.transparent : (dark ? const Color(0xFF202020) : const Color(0xFFF3F3F3)),

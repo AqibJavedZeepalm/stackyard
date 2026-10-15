@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:stackyard/main.dart';
 import 'package:stackyard/state/app_state.dart';
 import 'package:stackyard/ui/motion.dart';
+import 'package:stackyard/ui/pages/market_page.dart';
 import 'package:stackyard/ui/shell.dart';
 
 Future<void> waitFor(WidgetTester tester, bool Function() done, {Duration timeout = const Duration(minutes: 5)}) async {
@@ -96,12 +97,32 @@ void main() {
           'latest=${t.snapshot.latest} notes=${t.snapshot.notes.length}');
       await shot(tester, 'tech-${t.id.replaceAll(RegExp(r'[^a-z0-9]'), '-')}');
     }
-    for (final id in ['overview', 'market', 'projects', 'emulators', 'activity', 'settings']) {
+    for (final id in ['overview', 'market', 'projects', 'emulators', if (Platform.isMacOS) 'simulators', 'activity', 'settings']) {
       shell.open(id);
       await settle(tester, id == 'market' ? 4000 : 900);
       print('PAGE $id');
       await shot(tester, id);
     }
+
+    // Every marketplace tool lists its versions inside the real app.
+    shell.open('market');
+    await settle(tester, 1500);
+    final failed = <String>[];
+    for (final t in state.catalog) {
+      final card = find.descendant(of: find.byType(MarketPage), matching: find.text(t.name)).first;
+      await tester.ensureVisible(card);
+      await settle(tester, 300);
+      await tester.tap(card);
+      final error = find.textContaining('Couldn\'t load the versions');
+      await waitFor(tester, () => find.textContaining('Loading versions').evaluate().isEmpty, timeout: const Duration(minutes: 1));
+      await settle(tester, 300);
+      if (error.evaluate().isNotEmpty) failed.add(t.id);
+      print('MARKET ${t.id} ${error.evaluate().isEmpty ? 'ok' : 'FAILED'}');
+      await shot(tester, 'market-${t.id}');
+      await tester.tap(find.byIcon(WindowsIcons.back).first);
+      await settle(tester, 600);
+    }
+    expect(failed, isEmpty);
 
     // flutter_test fails the test on any uncaught Flutter error by itself.
   }, timeout: const Timeout(Duration(minutes: 10)));

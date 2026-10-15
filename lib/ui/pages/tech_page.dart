@@ -164,7 +164,7 @@ class _TechPageState extends State<TechPage> {
                   entry.key,
                   top: g == 0 ? 12 : 24,
                   trailing: Muted(
-                    entry.value.any((i) => i.path.isNotEmpty && (i.sizeBytes ?? 0) > 0)
+                    entry.value.any((i) => (i.sizeBytes ?? 0) > 0)
                         ? formatBytes(entry.value.fold<int>(0, (s, i) => s + (i.sizeBytes ?? 0)))
                         : '',
                   ),
@@ -293,7 +293,7 @@ class _VersionRowState extends State<VersionRow> {
   String _subtitle() {
     final item = widget.item;
     final n = item.usedBy.length;
-    final what = item.usedBy.any((u) => u.kind == 'emulator') ? 'emulator' : 'project';
+    final what = item.usedBy.firstOrNull?.kind ?? 'project'; // 'project', 'emulator', 'simulator'
     final users = '$n $what${n == 1 ? '' : 's'}';
     return switch (item.status) {
       ItemStatus.global => n == 0 ? 'Global default' : 'Global default · used by $users',
@@ -347,7 +347,8 @@ class _VersionRowState extends State<VersionRow> {
             ),
           ),
           const SizedBox(width: 12),
-          if (item.path.isNotEmpty || busy)
+          // Some items know their size without a folder to measure (simulator runtimes).
+          if (item.path.isNotEmpty || item.sizeBytes != null || busy)
             SizedBox(
               width: 80,
               child: Align(

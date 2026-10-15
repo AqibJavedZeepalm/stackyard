@@ -35,7 +35,7 @@ class _OverviewPageState extends State<OverviewPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (state.scanning) ...[
+              if (state.scanning || state.lastScan == null) ...[
                 const ProgressRing(),
                 const SizedBox(height: 16),
                 Text('Looking for SDKs and projects…', style: theme.typography.bodyLarge),

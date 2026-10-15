@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:stackyard/core/autostart.dart';
+import 'package:stackyard/core/sys.dart';
 import 'package:stackyard/core/models.dart';
 import 'package:stackyard/core/project_junk.dart';
 import 'package:stackyard/core/techs/android_tech.dart';
@@ -140,16 +141,16 @@ void main() {
     await tester.tap(find.text('3.22.3'));
     await settle(tester);
     expect(tester.takeException(), isNull, reason: 'layout error after step at line 137');
-    expect(find.text('Show in Explorer'), findsOneWidget);
+    expect(find.text('Show in ${Sys.fileManager}'), findsOneWidget);
     await tester.tap(find.text('Remove'));
     await settle(tester);
     expect(tester.takeException(), isNull, reason: 'layout error after step at line 140');
-    expect(find.text('Move to Recycle Bin'), findsOneWidget);
+    expect(find.text('Move to ${Sys.trashName}'), findsOneWidget);
     // Choosing to skip the Recycle Bin changes the button, so it's never a surprise.
     await tester.tap(find.textContaining('Delete permanently instead'));
     await settle(tester);
     expect(find.text('Delete permanently'), findsWidgets);
-    expect(find.text('Move to Recycle Bin'), findsNothing);
+    expect(find.text('Move to ${Sys.trashName}'), findsNothing);
     await tester.tap(find.text('Cancel'));
     await settle(tester);
     expect(tester.takeException(), isNull, reason: 'layout error after step at line 143');

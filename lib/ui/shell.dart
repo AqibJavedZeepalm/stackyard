@@ -4,11 +4,13 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../core/techs/xcode_tech.dart';
 import '../state/app_state.dart';
 import '../state/jobs.dart';
 import 'motion.dart';
 import 'pages/activity_page.dart';
 import 'pages/emulators_page.dart';
+import 'pages/simulators_page.dart';
 import 'pages/market_page.dart';
 import 'pages/overview_page.dart';
 import 'pages/projects_page.dart';
@@ -104,11 +106,13 @@ class ShellState extends State<Shell> {
     final toolchains = state.toolchains;
     final frameworks = state.frameworks;
     final emulatorCount = state.tech('android')?.snapshot.items.where((i) => i.group == 'Emulators').length ?? 0;
+    final simulatorCount = state.tech('xcode')?.snapshot.items.where((i) => i.group == XcodeTech.simulatorsGroup).length ?? 0;
     final keys = [
       'overview',
       'market',
       'projects',
       if (emulatorCount > 0) 'emulators',
+      if (simulatorCount > 0) 'simulators',
       ...toolchains.map((t) => t.id),
       ...frameworks.map((t) => t.id),
       'activity',
@@ -117,12 +121,24 @@ class ShellState extends State<Shell> {
     if (!keys.contains(_selected)) _selected = 'overview';
 
     return NavigationView(
+      // macOS: pages fade in with a short rise, like its own apps. Windows keeps
+      // Fluent's drill-in.
+      transitionBuilder: Platform.isMacOS
+          ? (child, animation) {
+              final t = CurvedAnimation(parent: animation, curve: Motion.enter);
+              return FadeTransition(
+                opacity: t,
+                child: SlideTransition(position: Tween(begin: const Offset(0, 0.008), end: Offset.zero).animate(t), child: child),
+              );
+            }
+          : null,
       titleBar: TitleBar(
         isBackButtonVisible: false,
         // Leaves room for the macOS traffic-light buttons.
         icon: Padding(padding: EdgeInsets.only(left: Platform.isMacOS ? 64 : 0), child: const _AppIcon()),
         title: const Text('Stackyard'),
-        endHeader: _ScanStatus(state: state, jobs: jobs, onOpenActivity: () => open('activity')),
+        // Flexible: a long job title shrinks (ellipsis) instead of overflowing the title bar.
+        endHeader: Flexible(child: _ScanStatus(state: state, jobs: jobs, onOpenActivity: () => open('activity'))),
         captionControls: widget.nativeChrome && Platform.isWindows
             ? SizedBox(
                 width: 138,
@@ -166,6 +182,13 @@ class ShellState extends State<Shell> {
               icon: const Icon(WindowsIcons.cell_phone),
               title: _PaneTitle('Emulators', trailing: Muted('$emulatorCount')),
               body: const EmulatorsPage(),
+            ),
+          if (simulatorCount > 0)
+            PaneItem(
+              key: const ValueKey('simulators'),
+              icon: const Icon(WindowsIcons.cell_phone),
+              title: _PaneTitle('Simulators', trailing: Muted('$simulatorCount')),
+              body: const SimulatorsPage(),
             ),
           if (toolchains.isNotEmpty) _header('Toolchains'),
           ...toolchains.map(techItem),
@@ -223,10 +246,11 @@ class _PaneTitle extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, c) {
         if (c.maxWidth < 80) return label;
+        // Expanded, not Flexible + Spacer: those split the free space, which put
+        // each count at a different spot depending on how long the label is.
         return Row(
           children: [
-            Flexible(child: label),
-            const Spacer(),
+            Expanded(child: label),
             Padding(padding: const EdgeInsetsDirectional.only(start: 6, end: 12), child: trailing),
           ],
         );
@@ -238,35 +262,10 @@ class _PaneTitle extends StatelessWidget {
 class _AppIcon extends StatelessWidget {
   const _AppIcon();
 
+  // fluent_ui puts the title-bar icon flush against the window edge; inset it
+  // so it lines up with the pane icons below, like native Windows 11 apps.
   @override
-  Widget build(BuildContext context) {
-    final theme = FluentTheme.of(context);
-    final accent = theme.accentColor.defaultBrushFor(theme.brightness);
-    // fluent_ui puts the title-bar icon flush against the window edge; inset it
-    // so it lines up with the pane icons below, like native Windows 11 apps.
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(start: 16),
-      child: SizedBox(
-        width: 16,
-        height: 16,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (final (i, w) in [10.0, 14.0, 16.0].indexed)
-              Container(
-                width: w,
-                height: 3.5,
-                margin: EdgeInsets.only(top: i == 0 ? 0 : 1.5),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.55 + i * 0.2),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const Padding(padding: EdgeInsetsDirectional.only(start: 16), child: StackyardMark());
 }
 
 /// Small status in the title bar: what the scanner is doing right now.
@@ -301,7 +300,7 @@ class _ScanStatus extends StatelessWidget {
                 child: ProgressRing(strokeWidth: 2, value: job.totalSteps > 1 ? 100 * (job.step - 1).clamp(0, job.totalSteps) / job.totalSteps : null),
               ),
               const SizedBox(width: 8),
-              ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Muted(label, maxLines: 1)),
+              Flexible(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Muted(label, maxLines: 1))),
             ],
           ),
         ),
@@ -334,7 +333,7 @@ class _ScanStatus extends StatelessWidget {
               ),
               const SizedBox(width: 8),
             ],
-            Muted(label),
+            Flexible(child: Muted(label, maxLines: 1)),
           ],
         ),
       ),

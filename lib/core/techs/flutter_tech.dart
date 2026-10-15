@@ -25,11 +25,15 @@ class FlutterTech extends TechAdapter {
 
   List<VersionOption>? _releases;
 
+  /// A Flutter SDK on PATH that FVM doesn't manage; it's what "flutter" runs in a terminal.
+  String? _standalone;
+
   String get _fvmDir => Sys.env['FVM_CACHE_PATH'] != null ? Sys.env['FVM_CACHE_PATH']! : p.join(Sys.home, 'fvm');
 
   @override
   Future<TechSnapshot?> detect(ScanContext ctx) async {
     _fvm = Sys.which('fvm');
+    _standalone = null;
     final items = <InstalledItem>[];
     String manager = 'Flutter SDK';
 
@@ -74,6 +78,7 @@ class FlutterTech extends TechAdapter {
       final managed = items.any((i) => _samePath(i.path, root)) || p.isWithin(_fvmDir.toLowerCase(), root.toLowerCase());
       final isSdk = Sys.dirExists(p.join(root, 'packages', 'flutter_tools'));
       if (!managed && isSdk) {
+        _standalone = root;
         final version = _readSdkVersion(root) ?? 'unknown';
         items.add(_item(name: version, dir: root, label: '$version (standalone)', group: 'Standalone', isGlobal: !items.any((i) => i.isGlobal)));
       }
@@ -236,19 +241,38 @@ class FlutterTech extends TechAdapter {
     return PlannedChange(
       title: 'Install Flutter $version',
       commands: [
-        CommandSpec(title: 'Download and set up Flutter $version', executable: _fvm!, arguments: ['install', version]),
+        CommandSpec(
+          title: 'Download and set up Flutter $version',
+          executable: _fvm!,
+          arguments: ['install', version],
+          watchPath: p.join(_fvmDir, 'versions', version),
+          terminal: true,
+        ),
       ],
     );
   }
 
   @override
-  bool canSetGlobal(InstalledItem item) => _fvm != null && item.group == 'Versions' && !item.isGlobal;
+  bool canSetGlobal(InstalledItem item) => _fvm != null && (item.group == 'Versions' || item.group == 'Standalone') && !item.isGlobal;
 
   @override
-  PlannedChange? planSetGlobal(InstalledItem item) => PlannedChange(
-    title: 'Make Flutter ${item.version} the global version',
-    commands: [
-      CommandSpec(title: 'Set global version', executable: _fvm!, arguments: ['global', item.version]),
-    ],
-  );
+  PlannedChange? planSetGlobal(InstalledItem item) {
+    // The standalone SDK is the global one whenever FVM has none.
+    if (item.group == 'Standalone') {
+      return PlannedChange(
+        title: 'Make Flutter ${item.title} the global version',
+        commands: [CommandSpec(title: 'Remove FVM\'s global version', executable: _fvm!, arguments: ['global', '--unlink'])],
+      );
+    }
+    return PlannedChange(
+      title: 'Make Flutter ${item.version} the global version',
+      commands: [
+        CommandSpec(title: 'Set global version', executable: _fvm!, arguments: ['global', item.version]),
+      ],
+      warning: _standalone == null
+          ? null
+          : 'Your terminal runs the Flutter in $_standalone, which is on PATH, so typing "flutter" keeps using it. '
+                '"fvm flutter" and FVM projects without a pin will use ${item.version}.',
+    );
+  }
 }

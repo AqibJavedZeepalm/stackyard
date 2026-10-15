@@ -272,9 +272,10 @@ class PythonMarket extends MarketTool {
     // macOS: python.org's installer, which always installs into /Library/Frameworks.
     final minor = v.version.split('.').take(2).join('.');
     final pkg = p.join(Sys.home, '.stackyard-downloads', 'python-${v.version}-macos11.pkg');
+    // Previews (3.15.0rc1) live in their release's folder (3.15.0).
+    final url = 'https://www.python.org/ftp/python/${RegExp(r'^\d+\.\d+\.\d+').stringMatch(v.version) ?? v.version}/python-${v.version}-macos11.pkg';
     return MarketPlan(
-      // Previews (3.15.0rc1) live in their release's folder (3.15.0).
-      download: DownloadStep(url: 'https://www.python.org/ftp/python/${RegExp(r'^\d+\.\d+\.\d+').stringMatch(v.version) ?? v.version}/python-${v.version}-macos11.pkg', label: 'Python ${v.version}', saveAs: pkg),
+      download: DownloadStep(url: url, sha256: await _macPkgSha256(v.version, url), label: 'Python ${v.version}', saveAs: pkg),
       commands: [
         CommandSpec(
           title: 'Run the python.org installer (asks for your password)',
@@ -285,6 +286,16 @@ class PythonMarket extends MarketTool {
       fixedLocation: '/Library/Frameworks/Python.framework/Versions/$minor',
       note: 'On macOS, python.org\'s installer always installs into /Library/Frameworks.',
     );
+  }
+
+  /// python.org's published SHA-256 of the macOS installer.
+  Future<String> _macPkgSha256(String version, String url) async {
+    final release = (await _json('https://www.python.org/api/v2/downloads/release/?name=${Uri.encodeQueryComponent('Python $version')}') as List).single as Map;
+    final id = (release['resource_uri'] as String).split('/').where((s) => s.isNotEmpty).last;
+    final files = (await _json('https://www.python.org/api/v2/downloads/release_file/?release=$id') as List).cast<Map>();
+    final sha = files.firstWhere((f) => f['url'] == url)['sha256_sum'] as String?;
+    if (sha == null || sha.isEmpty) throw Exception('python.org lists no checksum for $url');
+    return sha;
   }
 
   @override
@@ -572,9 +583,9 @@ MarketTool denoMarket() => _NpmListedRuntime(
   homepage: 'https://deno.com',
   look: _look('deno', 'Deno', 0xFF000000, 'De', logo: 'assets/tech/deno.svg', tint: LogoTint.foreground),
   npmPackage: 'deno',
-  url: (v) => 'https://dl.deno.land/release/v$v/deno-${Sys.isWindows ? 'x86_64-pc-windows-msvc' : (_arm ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin')}.zip',
+  url: (v) => 'https://github.com/denoland/deno/releases/download/v$v/deno-${Sys.isWindows ? 'x86_64-pc-windows-msvc' : (_arm ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin')}.zip',
   checksumUrl: (v) =>
-      'https://dl.deno.land/release/v$v/deno-${Sys.isWindows ? 'x86_64-pc-windows-msvc' : (_arm ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin')}.zip.sha256sum',
+      'https://github.com/denoland/deno/releases/download/v$v/deno-${Sys.isWindows ? 'x86_64-pc-windows-msvc' : (_arm ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin')}.zip.sha256sum',
 );
 
 MarketTool bunMarket() => _NpmListedRuntime(

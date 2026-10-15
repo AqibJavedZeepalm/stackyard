@@ -64,7 +64,12 @@ class EnvWriter {
   }
 
   /// Applies [changes] on macOS (or Linux): rewrites this tool's block in the shell profiles.
-  static Future<List<String>> applyUnix(List<EnvChange> changes, {required String block, String? home}) async {
+  static Future<List<String>> applyUnix(
+    List<EnvChange> changes, {
+    required String block,
+    String? home,
+    Future<String> Function(List<String> args)? launchctl,
+  }) async {
     final homeDir = home ?? Sys.home;
     final profiles = [File(p.join(homeDir, '.zprofile')), if (File(p.join(homeDir, '.bash_profile')).existsSync()) File(p.join(homeDir, '.bash_profile'))];
     final start = '# >>> stackyard:$block >>>';
@@ -101,13 +106,60 @@ class EnvWriter {
       file.writeAsStringSync(text);
       touched.add(file.path);
     }
-    // Apps started from the Dock don't read shell profiles.
+    // Apps started from the Dock don't read shell profiles: set the variables in
+    // this login session too, and again at every login. Only for the real home
+    // folder; tests write to a temporary one and pass their own [launchctl].
     if (Platform.isMacOS) {
-      for (final c in changes) {
-        if (c.op == EnvOp.set) await Process.run('launchctl', ['setenv', c.name, c.value!]);
-        if (c.op == EnvOp.remove) await Process.run('launchctl', ['unsetenv', c.name]);
+      final run = launchctl ?? (home == null ? (List<String> args) => Process.run('launchctl', args).then((r) => '${r.stdout}'.trim()) : null);
+      if (run != null) {
+        for (final c in changes) {
+          if (c.op == EnvOp.set) await run(['setenv', c.name, c.value!]);
+          if (c.op == EnvOp.remove) await run(['unsetenv', c.name]);
+          if (c.op == EnvOp.removeIfUnder) {
+            final now = await run(['getenv', c.name]);
+            if (now.isNotEmpty && (p.equals(now, c.value!) || p.isWithin(c.value!, now))) await run(['unsetenv', c.name]);
+          }
+        }
       }
+      writeLoginAgent(homeDir);
     }
     return touched;
+  }
+
+  /// ~/Library/LaunchAgents/dev.stackyard.env.plist: at login, sets the variables
+  /// from Stackyard's blocks in ~/.zprofile for apps started from the Dock
+  /// (`launchctl setenv` alone only lasts until logout). Removed when no block sets any.
+  static void writeLoginAgent(String homeDir) {
+    final agent = File(p.join(homeDir, 'Library', 'LaunchAgents', 'dev.stackyard.env.plist'));
+    final profile = File(p.join(homeDir, '.zprofile'));
+    final text = profile.existsSync() ? profile.readAsStringSync() : '';
+    final exports = [
+      for (final b in RegExp(r'# >>> stackyard:[\s\S]*?# <<< stackyard:').allMatches(text))
+        for (final m in RegExp(r'^export (?!PATH=)(\w+)=(".*")$', multiLine: true).allMatches(b[0]!)) 'launchctl setenv ${m[1]} ${m[2]}',
+    ];
+    if (exports.isEmpty) {
+      if (agent.existsSync()) agent.deleteSync();
+      return;
+    }
+    String xml(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    agent.parent.createSync(recursive: true);
+    agent.writeAsStringSync('''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.stackyard.env</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>${xml(exports.join('; '))}</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+''');
   }
 }

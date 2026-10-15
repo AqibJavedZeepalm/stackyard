@@ -1,9 +1,15 @@
 # Stackyard
 
-See every SDK, toolchain and framework version on your machine, which projects use each one, and what's safe to remove. Then fix what's wrong with one click.
+[![CI](https://github.com/AqibJavedZeepalm/stackyard/actions/workflows/ci.yml/badge.svg)](https://github.com/AqibJavedZeepalm/stackyard/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-555)](#download)
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://aqibjaved.dev/coffee)
+
+A free, open-source app for Windows and macOS that shows every SDK, toolchain and framework version on your computer, which projects use each one, and what's safe to remove. Then it fixes what's wrong with one click.
 
 Version managers like FVM, nvm, pyenv and SDKMAN are great at installing versions. None of them tells you that you have six Flutter SDKs, three Android NDKs and a 13 GB emulator you haven't started in a year. Stackyard does.
 
+- **Set up in a minute.** On first launch Stackyard finds the folders where your projects live, shows how many projects each holds, and lets you add more.
 - **One window for every tech.** A sidebar entry appears only for techs found on your machine.
 - **Get tools.** A marketplace of SDKs and CLIs (Flutter, Android command-line tools, Node.js, Python, Java, .NET, Go, Rust, Deno, Bun, Gradle, and the Angular, Expo, NestJS, Firebase, Vercel, Ionic, Nx, TypeScript, pnpm and Yarn CLIs). Every version is listed from the publisher's own release feed. Downloads come straight from the publisher and are checked against their published hash. Before installing, you choose the folder and which environment variables to set (`PATH`, `JAVA_HOME`, `GOROOT`…): your user variables or everyone's on Windows, a marked block in `~/.zprofile` on macOS. Installed versions can be made the default or removed later, which cleans up their variables too.
 - **Knows who uses what.** It reads `.fvmrc`, `.nvmrc`, `package.json`, `gradle-wrapper.properties`, `build.gradle`, `local.properties`, `.python-version`, `global.json` and more across your project folders.
@@ -11,22 +17,25 @@ Version managers like FVM, nvm, pyenv and SDKMAN are great at installing version
 - **Environment doctor.** Finds `JAVA_HOME` / `ANDROID_HOME` pointing at folders that are gone, dead and duplicate PATH entries (it saves a backup first), and a Java that's too new or too old for a Flutter app's Gradle and Android Gradle Plugin.
 - **Project cleanup.** Shows the `node_modules`, `build`, `.dart_tool`, `.gradle`, `Pods` and other rebuildable folders in your projects, with a one-click clean for projects you haven't touched in months.
 - **Emulator manager.** Start, cold boot, wipe data, delete snapshots or delete each Android emulator, with its size and when it last ran.
+- **Simulators (macOS).** Every iOS, watchOS, tvOS and visionOS simulator with its size and last start: start, shut down, erase or delete it. The Xcode page shows each simulator runtime (often 8 GB each), which simulators use it, and Xcode's rebuildable caches.
+- **Progress you can see.** Every install, removal and fix runs in Activity with its live output and a real progress bar. Cancel stops it cleanly, without leaving half a download behind.
 - **Safe removal.** Things go to the Recycle Bin / Trash by default, or you can choose to delete permanently. Installed programs are removed with their own uninstaller. Links are removed as links; what they point to is never touched. You see every step before it runs, and a spinner wherever work is happening.
 - **Runs in the background.** Closing the window keeps Stackyard in the system tray (Windows) or menu bar (macOS). It checks your setup daily or weekly and notifies you only when there's something new. It can start at sign-in.
 - **Move your setup.** Export your toolchain versions to a file and import it on another computer to install what's missing.
 - **Never edits your projects.** It doesn't change a project's pinned versions, because that can break builds.
-- **Native feel.** Windows 11 Fluent design with Mica, Fluent motion and your accent color.
+- **Native feel.** Windows 11 Fluent design with Mica and your accent color; on macOS, the glass sidebar and motion of a Mac app. A Glass slider sets how much of your desktop shows through.
 
 ## What it detects
 
 | Tech | Where it looks | How it knows a project uses it |
 |---|---|---|
 | Flutter | FVM (`fvm api list`), standalone SDK on PATH | `.fvmrc`, `.fvm/fvm_config.json`; unpinned projects use the global version |
-| Node.js | nvm-windows, fnm, Volta, Node.js installer | `.nvmrc`, `.node-version`, `package.json` `volta` / `engines` |
+| Node.js | nvm (nvm-windows on Windows), fnm, Volta, Node.js installer, Homebrew | `.nvmrc`, `.node-version`, `package.json` `volta` / `engines` |
 | Android SDK | Platforms, build tools, NDKs, system images, emulators, duplicate SDK folders | `compileSdk`, `ndkVersion` (including Flutter's defaults per SDK version), `local.properties` `sdk.dir`, emulator `config.ini` |
+| Xcode (macOS) | Simulators and runtimes (`xcrun simctl`), DerivedData, device support files | Which simulators use each runtime |
 | Gradle | `~/.gradle/wrapper/dists`, caches | `gradle-wrapper.properties` |
-| Java | Program Files vendors, `~/.jdks`, SDKMAN, Android Studio JBR | `.java-version` |
-| Python | `py` launcher, pyenv-win, uv, python.org and Microsoft Store installs | `.python-version`, `requires-python` |
+| Java | Program Files vendors, `/Library/Java/JavaVirtualMachines`, Homebrew, `~/.jdks`, SDKMAN, Android Studio JBR | `.java-version` |
+| Python | `py` launcher, pyenv / pyenv-win, uv, python.org, Homebrew and Microsoft Store installs | `.python-version`, `requires-python` |
 | .NET SDK | `dotnet --list-sdks` | `global.json` |
 | React, React Native, Expo, Next.js, Vue, Nuxt, Angular, Svelte, Astro, Electron, Vite, TypeScript | Each project's `node_modules` | `package.json` |
 
@@ -82,12 +91,19 @@ powershell -File tool/dev.ps1 build windows --release
 powershell -ExecutionPolicy Bypass -File tool/install.ps1
 ```
 
-Tests:
+### Tests
+
+CI runs analyze, the tests and a debug build on macOS and Windows for every push and pull request. The rest touch your real machine, so they run locally only:
 
 ```bash
 fvm flutter test
-fvm flutter test test/scan_smoke_test.dart --dart-define=SMOKE=true   # scans your real machine
+fvm flutter test test/scan_smoke_test.dart --dart-define=SMOKE=true          # scans your real machine
+fvm flutter test test/market_live_test.dart --dart-define=LIVE=true          # installs every tool into a temp folder, runs it, deletes it
+fvm flutter test test/simulators_live_test.dart --dart-define=LIVE=true      # macOS: a throwaway simulator
+fvm flutter test integration_test/real_machine_test.dart -d macos            # the real app: every page (-d windows on Windows)
 ```
+
+`integration_test/actions_test.dart` installs and removes real Flutter and Node versions through the UI; pick versions you don't have with `--dart-define=FLUTTER_TEST_VERSION=… --dart-define=NODE_TEST_VERSION=…`. On macOS, keep the test window in front: macOS stops drawing hidden windows and the test waits.
 
 ## Adding a tech
 
@@ -108,14 +124,24 @@ lib/
     techs/         one adapter per tech
     doctor.dart    environment checks and their fixes
     project_junk.dart, stack_file.dart, installers.dart, installed_apps.dart, autostart.dart
-  state/           app state, settings, job queue, background (tray, checks)
-  ui/              Fluent UI: shell, pages, dialogs, motion
+  state/           app state, settings, job queue, background (tray, checks), notifications
+  ui/              Fluent UI: shell, pages, dialogs, onboarding, motion, report a problem
 ```
 
 ## Privacy
 
-Everything runs locally. Stackyard only goes online to check for new versions (Flutter releases, nodejs.org, the npm registry). No accounts, no telemetry.
+Everything runs locally. Stackyard only goes online to check for new versions (Flutter releases, nodejs.org, the npm registry…) and to download the tools you choose to install. No accounts, no telemetry. "Report a problem" opens a GitHub issue in your browser with your app and OS versions filled in; nothing is sent until you submit it there.
+
+## Contributing
+
+Bug reports, fixes and support for new techs are all welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: it has the rules that keep Stackyard safe to run on people's machines, how to set up the project, and what a pull request needs.
+
+## Support
+
+Stackyard is free and stays free. If it saved you some disk space or an afternoon of fighting `JAVA_HOME`, you can [buy me a coffee](https://aqibjaved.dev/coffee). It keeps the project going, and it's never required for anything: every feature is in the free app.
+
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://aqibjaved.dev/coffee)
 
 ## License
 
-MIT
+[MIT](LICENSE). Made by [Aqib Javed](https://aqibjaved.dev).

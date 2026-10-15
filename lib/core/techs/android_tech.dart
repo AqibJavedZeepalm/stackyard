@@ -162,7 +162,7 @@ class AndroidTech extends TechAdapter {
             if (cfg('tag.display') case final tag?) 'Image': tag,
             if (sysdir != null) 'System image': sysdir.replaceAll('\\', '/'),
             if (imageMissing) 'Problem': 'Its system image isn\'t installed, so it can\'t start.',
-            'Last started': lastBoot == null ? 'Never' : _ago(lastBoot),
+            'Last started': lastBoot == null ? 'Never' : agoText(lastBoot),
             'AVD': name,
           },
         );
@@ -246,14 +246,6 @@ class AndroidTech extends TechAdapter {
       if (m != null && (best == null || m.isAfter(best))) best = m;
     }
     return best;
-  }
-
-  static String _ago(DateTime t) {
-    final d = DateTime.now().difference(t);
-    if (d.inDays >= 365) return '${(d.inDays / 365).floor()} yr ago';
-    if (d.inDays >= 30) return '${(d.inDays / 30).floor()} mo ago';
-    if (d.inDays >= 1) return '${d.inDays} days ago';
-    return 'Today';
   }
 
   /// "Android 14 (API 34)" for an API level.

@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:local_notifier/local_notifier.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_state.dart';
+import 'notify.dart';
 
 /// What a background check would tell you: null when there's nothing new.
 /// [key] identifies the news so the same thing isn't announced twice.
@@ -46,7 +46,7 @@ class Background with TrayListener, WindowListener {
 
   Future<void> start() async {
     if (!_tray) return;
-    await localNotifier.setup(appName: 'Stackyard', shortcutPolicy: ShortcutPolicy.requireCreate);
+    await Notify.setup(show);
     await windowManager.setPreventClose(true);
     windowManager.addListener(this);
     trayManager.addListener(this);
@@ -90,8 +90,7 @@ class Background with TrayListener, WindowListener {
     final alert = backgroundAlert(state);
     if (alert == null || alert.key == state.settings.lastAlert) return;
     state.settings.update((s) => s.lastAlert = alert.key);
-    final n = LocalNotification(title: alert.title, body: alert.body)..onClick = show;
-    n.show();
+    Notify.show(alert.title, alert.body);
   }
 
   Future<void> show() async {
@@ -120,10 +119,7 @@ class Background with TrayListener, WindowListener {
     await windowManager.hide();
     if (!state.settings.trayTipShown) {
       state.settings.update((s) => s.trayTipShown = true);
-      LocalNotification(
-        title: 'Stackyard is still running',
-        body: 'It checks your setup now and then. Open or quit it from its icon in the $_trayName.',
-      ).show();
+      Notify.show('Stackyard is still running', 'It checks your setup now and then. Open or quit it from its icon in the $_trayName.');
     }
   }
 

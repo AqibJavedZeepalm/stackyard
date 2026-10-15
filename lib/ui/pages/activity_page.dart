@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/jobs.dart';
 import '../motion.dart';
+import '../report.dart';
 import '../widgets.dart';
 
 class ActivityPage extends StatelessWidget {
@@ -98,7 +99,16 @@ class _JobCardState extends State<_JobCard> {
       JobStatus.queued => (Icon(WindowsIcons.history, size: 16, color: r.textFillColorSecondary), 'Waiting'),
       JobStatus.running => (
         const SizedBox(width: 16, height: 16, child: ProgressRing(strokeWidth: 2.5)),
-        'Step ${job.step} of ${job.totalSteps}${_quietFor(job)}',
+        [
+          if (job.totalSteps > 1) 'Step ${job.step} of ${job.totalSteps}',
+          // What the step is doing right now; the "> command" line until it says something.
+          switch (job.log.lastOrNull) {
+            final l? when !l.startsWith('> ') => l.trim(),
+            _ when job.receivedBytes != null => '${formatBytes(job.receivedBytes!)} downloaded so far',
+            _ => 'Working…',
+          },
+        ].join(' · ') +
+            _quietFor(job),
       ),
       JobStatus.done => (Icon(WindowsIcons.completed, size: 16, color: r.systemFillColorSuccess), 'Done'),
       JobStatus.failed => (Icon(WindowsIcons.error, size: 16, color: r.systemFillColorCritical), job.error ?? 'Failed'),
@@ -133,18 +143,37 @@ class _JobCardState extends State<_JobCard> {
                       ],
                     ),
                   ),
+                  if (job.status == JobStatus.failed) ...[
+                    Tooltip(
+                      message: 'Opens a GitHub issue with the details filled in. You check it and submit it yourself.',
+                      child: Button(child: const Text('Report a problem'), onPressed: () => reportProblem(job: job)),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   if (job.status == JobStatus.running || job.status == JobStatus.queued) ...[
                     Button(child: const Text('Cancel'), onPressed: () => context.read<JobQueue>().cancel(job)),
                     const SizedBox(width: 12),
                   ],
                   if (elapsed != null) Muted(_elapsed(elapsed)),
                   const SizedBox(width: 12),
+                  if (job.status == JobStatus.done || job.status == JobStatus.failed) ...[
+                    Tooltip(
+                      message: 'Remove from the list',
+                      child: IconButton(icon: const Icon(WindowsIcons.clear, size: 10), onPressed: () => context.read<JobQueue>().remove(job)),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
                   AnimatedRotation(turns: open ? 0.5 : 0, duration: Motion.of(context, Motion.normal), child: const Icon(WindowsIcons.chevron_down, size: 10)),
                 ],
               ),
             ),
             if (job.status == JobStatus.running)
-              ProgressBar(value: job.totalSteps <= 1 ? null : 100 * (job.step - 1).clamp(0, job.totalSteps) / job.totalSteps),
+              // A download's or command's own percentage fills its share of the bar.
+              ProgressBar(
+                value: job.progress == null && job.totalSteps <= 1
+                    ? null
+                    : 100 * ((job.step - 1).clamp(0, job.totalSteps) + (job.progress ?? 0)) / job.totalSteps,
+              ),
             if (open && job.log.isNotEmpty)
               Container(
                 constraints: const BoxConstraints(maxHeight: 260),
@@ -155,7 +184,7 @@ class _JobCardState extends State<_JobCard> {
                   reverse: true,
                   child: SelectableText(
                     job.log.join('\n'),
-                    style: TextStyle(fontFamily: 'Cascadia Mono', fontFamilyFallback: const ['Consolas'], fontSize: 12, color: r.textFillColorPrimary),
+                    style: TextStyle(fontFamily: 'Cascadia Mono', fontFamilyFallback: const ['Consolas', 'SF Mono', 'Menlo'], fontSize: 12, color: r.textFillColorPrimary),
                   ),
                 ),
               ),

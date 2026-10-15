@@ -19,7 +19,11 @@ import 'package:stackyard/state/jobs.dart';
 const live = bool.fromEnvironment('LIVE');
 
 /// Tools installed for real. Flutter is left out by default (over 1 GB); add it with --dart-define=INSTALL=flutter,…
-const installIds = String.fromEnvironment('INSTALL', defaultValue: 'node,go,deno,bun,java,gradle,android-cmdline-tools,python,dotnet,rust');
+/// On macOS Python is left out too: python.org's installer asks for an administrator password.
+const _install = String.fromEnvironment('INSTALL');
+final installIds = _install.isNotEmpty
+    ? _install
+    : 'node,go,deno,bun,java,gradle,android-cmdline-tools,${Platform.isWindows ? 'python,' : ''}dotnet,rust';
 
 Future<Job> runJob(PlannedChange change) async {
   final queue = JobQueue(onJobFinished: (_) {});
@@ -93,18 +97,20 @@ void main() {
   }, skip: !live, timeout: const Timeout(Duration(minutes: 5)));
 
   // What each tool's program is, inside its folder, and how to ask its version.
+  final win = Platform.isWindows;
+  final exe = win ? '.exe' : '', bat = win ? '.bat' : '';
   final probes = <String, (String, List<String>)>{
-    'node': ('node.exe', ['--version']),
-    'go': (p.join('bin', 'go.exe'), ['version']),
-    'deno': ('deno.exe', ['--version']),
-    'bun': ('bun.exe', ['--version']),
-    'java': (p.join('bin', 'java.exe'), ['-version']),
-    'gradle': (p.join('bin', 'gradle.bat'), ['--version']),
-    'android-cmdline-tools': (p.join('bin', 'sdkmanager.bat'), ['--version']),
+    'node': (win ? 'node.exe' : p.join('bin', 'node'), ['--version']),
+    'go': (p.join('bin', 'go$exe'), ['version']),
+    'deno': ('deno$exe', ['--version']),
+    'bun': ('bun$exe', ['--version']),
+    'java': (p.join(win ? '' : p.join('Contents', 'Home'), 'bin', 'java$exe'), ['-version']),
+    'gradle': (p.join('bin', 'gradle$bat'), ['--version']),
+    'android-cmdline-tools': (p.join('bin', 'sdkmanager$bat'), ['--version']),
     'python': ('python.exe', ['--version']),
-    'dotnet': ('dotnet.exe', ['--version']),
-    'rust': (p.join('cargo', 'bin', 'cargo.exe'), ['--version']),
-    'flutter': (p.join('bin', 'flutter.bat'), ['--version']),
+    'dotnet': ('dotnet$exe', ['--version']),
+    'rust': (p.join('cargo', 'bin', 'cargo$exe'), ['--version']),
+    'flutter': (p.join('bin', 'flutter$bat'), ['--version']),
   };
 
   for (final id in installIds.split(',')) {
@@ -120,7 +126,7 @@ void main() {
 
       // Gradle and sdkmanager need a JDK: use the one installed above, if any.
       final env = <String, String>{
-        if (dests['java'] != null && Directory(dests['java']!).existsSync()) 'JAVA_HOME': dests['java']!,
+        if (dests['java'] != null && Directory(dests['java']!).existsSync()) 'JAVA_HOME': JavaMarket().home(dests['java']!),
         if (id == 'rust') ...{'RUSTUP_HOME': p.join(dest, 'rustup'), 'CARGO_HOME': p.join(dest, 'cargo')},
       };
       final (exe, args) = probes[id]!;

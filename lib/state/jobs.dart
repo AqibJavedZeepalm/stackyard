@@ -32,6 +32,9 @@ class Job {
   /// How far the current download is (0–1), when its size is known.
   double? progress;
 
+  /// How much the running command has written to its [CommandSpec.watchPath] so far.
+  int? receivedBytes;
+
   int get totalSteps => change.downloads.length + change.edits.length + change.recycle.length + change.commands.length + (change.env.isEmpty ? 0 : 1);
   String get title => change.title;
 }
@@ -93,6 +96,13 @@ class JobQueue extends ChangeNotifier {
   }
 
   Process? _process;
+
+  /// Takes one finished job off the list.
+  void remove(Job job) {
+    if (job.status != JobStatus.done && job.status != JobStatus.failed) return;
+    jobs.remove(job);
+    notifyListeners();
+  }
 
   void clearFinished() {
     jobs.removeWhere((j) => j.status == JobStatus.done || j.status == JobStatus.failed);
@@ -340,6 +350,12 @@ class JobQueue extends ChangeNotifier {
       args = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script];
       shell = false;
     }
+    if (cmd.terminal && Platform.isMacOS) {
+      // git (inside fvm) prints its progress only to a terminal: give it one.
+      args = ['-q', '/dev/null', exe, ...args];
+      exe = '/usr/bin/script';
+    }
+    final createsWatched = cmd.watchPath != null && !Sys.dirExists(cmd.watchPath!);
     final process = await Process.start(
       exe,
       args,
@@ -361,15 +377,37 @@ class JobQueue extends ChangeNotifier {
           .transform(const LineSplitter())
           .map(_stripAnsi)
           .where((l) => l.trim().isNotEmpty)
-          .listen((l) => _log(job, l), onDone: closeOne);
+          .listen((l) => _output(job, l), onDone: closeOne);
     }
     // A tool's hidden prompt can disable our window mid-job; keep Cancel clickable.
     final guard = Timer.periodic(const Duration(seconds: 1), (_) => WindowGuard.reclaim());
+    var measuring = false;
+    final watch = cmd.watchPath == null
+        ? null
+        : Timer.periodic(const Duration(seconds: 2), (_) async {
+            if (measuring) return;
+            measuring = true;
+            final bytes = await Sys.dirSize(cmd.watchPath!);
+            measuring = false;
+            if (bytes > 0 && bytes != job.receivedBytes && job.status == JobStatus.running) {
+              job.receivedBytes = bytes;
+              notifyListeners();
+            }
+          });
     final code = await process.exitCode;
     guard.cancel();
+    watch?.cancel();
     _process = null;
     WindowGuard.reclaim();
     await done.future.timeout(const Duration(seconds: 2), onTimeout: () {});
+    // After the last output: a late "100%" line mustn't leave the bar full for the next step.
+    job.progress = null;
+    job.receivedBytes = null;
+    // A cancelled install leaves half a folder that the tool would later take for a real one.
+    if (job.cancelRequested && createsWatched && Sys.dirExists(cmd.watchPath!)) {
+      _log(job, 'Removing the unfinished ${cmd.watchPath}');
+      await Sys.deletePermanently(cmd.watchPath!);
+    }
     return code;
   }
 
@@ -381,5 +419,29 @@ class JobQueue extends ChangeNotifier {
     return '"${cmd.title}" needs $name, which isn\'t installed or isn\'t on PATH.$hint';
   }
 
-  static String _stripAnsi(String s) => s.replaceAll(RegExp(r'\x1B\[[0-9;?]*[ -/]*[@-~]'), '');
+  static final _percent = RegExp(r'(\d{1,3}(?:\.\d+)?) ?%');
+
+  /// Text progress bars like "[█████.....]" (FVM, git, sdkmanager).
+  static final _bar = RegExp(r'\[[█▓▒░#=>.\- ]{5,}\] *');
+
+  /// One line of a command's output. A percentage moves the job's progress bar,
+  /// and replaces the previous line of the same kind ("Receiving objects: 45%")
+  /// so the log doesn't fill up with one line per update.
+  void _output(Job job, String line) {
+    line = line.replaceAll(_bar, '').trim();
+    if (line.isEmpty) return;
+    final m = _percent.firstMatch(line);
+    if (m != null) {
+      final pct = double.parse(m[1]!);
+      if (pct <= 100) job.progress = pct / 100;
+      final kind = line.substring(0, m.start).trim();
+      final last = job.log.lastOrNull;
+      if (kind.isNotEmpty && last != null && last.startsWith(kind) && _percent.hasMatch(last)) job.log.removeLast();
+    }
+    _log(job, line);
+  }
+
+  /// Colors and cursor moves, plus the "^D" a terminal echoes when its input closes.
+  static String _stripAnsi(String s) =>
+      s.replaceAll(RegExp(r'\x1B\[[0-9;?]*[ -/]*[@-~]'), '').replaceAll(RegExp(r'\^D\x08*'), '').replaceAll(RegExp(r'[\x00-\x08\x0B-\x1F\x7F]'), '');
 }

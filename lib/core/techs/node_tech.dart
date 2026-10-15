@@ -21,6 +21,14 @@ class NodeTech extends TechAdapter {
   String? _managerExe;
   List<VersionOption>? _releases;
 
+  /// macOS / Linux nvm: a shell function, so it's run as `bash -c '. nvm.sh && nvm …'`.
+  String? _nvmSh;
+
+  /// The command that runs `nvm`/`fnm`/`volta` with [args].
+  CommandSpec _managerCommand(String title, List<String> args, {bool needsAdmin = false}) => _nvmSh != null && _manager == _Manager.nvm
+      ? CommandSpec(title: title, executable: _managerExe!, arguments: ['-c', '. "\$1" && nvm ${args.join(' ')}', 'bash', _nvmSh!])
+      : CommandSpec(title: title, executable: _managerExe!, arguments: args, needsAdmin: needsAdmin);
+
   /// nvm is installed but a Node.js installer copy sits where its link must go.
   bool _nvmBlocked = false;
 
@@ -32,6 +40,7 @@ class NodeTech extends TechAdapter {
     // Re-decided on every scan: a fix may have just removed a manager.
     _manager = null;
     _managerExe = null;
+    _nvmSh = null;
     _systemNode = null;
     var nvmVersions = <String>[];
     String? blockedLink;
@@ -66,7 +75,14 @@ class NodeTech extends TechAdapter {
 
     // nvm on macOS / Linux: a shell function, so its versions are read from its folder.
     if (!Sys.isWindows) {
-      final nvmDir = p.join(Sys.env['NVM_DIR'] ?? p.join(Sys.home, '.nvm'), 'versions', 'node');
+      final nvmHome = Sys.env['NVM_DIR'] ?? p.join(Sys.home, '.nvm');
+      final nvmDir = p.join(nvmHome, 'versions', 'node');
+      final nvmSh = [p.join(nvmHome, 'nvm.sh'), '/opt/homebrew/opt/nvm/nvm.sh', '/usr/local/opt/nvm/nvm.sh'].where(Sys.fileExists).firstOrNull;
+      if (nvmSh != null) {
+        _manager ??= _Manager.nvm;
+        _managerExe ??= '/bin/bash';
+        _nvmSh = nvmSh;
+      }
       if (Sys.dirExists(nvmDir)) {
         managers.add('nvm');
         for (final d in Sys.subdirs(nvmDir)) {
@@ -403,7 +419,7 @@ class NodeTech extends TechAdapter {
     };
     return PlannedChange(
       title: 'Install Node.js $version',
-      commands: [CommandSpec(title: 'Download Node.js $version', executable: _managerExe!, arguments: args)],
+      commands: [_managerCommand('Download Node.js $version', args)],
     );
   }
 
@@ -431,15 +447,24 @@ class NodeTech extends TechAdapter {
 
   @override
   PlannedChange? planSetGlobal(InstalledItem item) {
+    final posixNvm = _nvmSh != null && _manager == _Manager.nvm;
     final args = switch (_manager!) {
-      _Manager.nvm => ['use', item.version],
+      // Unix nvm's "use" only lasts for one shell; the default alias is what new terminals get.
+      _Manager.nvm => posixNvm ? ['alias', 'default', item.version] : ['use', item.version],
       _Manager.fnm => ['default', item.version],
       _Manager.volta => ['install', 'node@${item.version}'],
     };
     return PlannedChange(
       title: 'Make Node.js ${item.version} the active version',
-      commands: [CommandSpec(title: 'Switch active Node', executable: _managerExe!, arguments: args, needsAdmin: _manager == _Manager.nvm)],
-      warning: _manager == _Manager.nvm ? 'nvm-windows asks for administrator permission to switch versions.' : null,
+      commands: [_managerCommand('Switch active Node', args, needsAdmin: _manager == _Manager.nvm)],
+      warning: posixNvm && _systemNode != null
+          ? 'nvm\'s default changes, but Node.js ${_systemNode!.version} in ${_systemNode!.path} comes first on your PATH, so terminals keep '
+                'running it. Remove that one, or load nvm after it in your shell profile.'
+          : posixNvm
+          ? 'New terminals use it. Terminals already open keep their Node until you run "nvm use default".'
+          : _manager == _Manager.nvm
+          ? 'nvm-windows asks for administrator permission to switch versions.'
+          : null,
     );
   }
 }

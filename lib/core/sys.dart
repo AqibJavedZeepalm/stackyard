@@ -277,6 +277,16 @@ class Sys {
     if (isWindows) {
       await Process.run('taskkill', ['/PID', '${process.pid}', '/T', '/F']);
     } else {
+      // Its children too (fvm → git), deepest first, so nothing keeps running after Cancel.
+      Future<List<int>> descendants(int pid) async {
+        final r = await Process.run('pgrep', ['-P', '$pid']);
+        final kids = '${r.stdout}'.split('\n').map((s) => int.tryParse(s.trim())).whereType<int>().toList();
+        return [for (final k in kids) ...await descendants(k), ...kids];
+      }
+
+      for (final pid in await descendants(process.pid)) {
+        Process.killPid(pid, ProcessSignal.sigkill);
+      }
       process.kill(ProcessSignal.sigkill);
     }
     WindowGuard.reclaim();

@@ -46,7 +46,7 @@ class InstalledApps {
       return CommandSpec(title: label, executable: 'msiexec.exe', arguments: ['/x', code, '/passive', '/norestart'], needsAdmin: true);
     }
     final (exe, args) = _split(raw);
-    final file = p.basename(exe).toLowerCase();
+    final file = p.windows.basename(exe).toLowerCase();
     // Inno Setup: its "quiet" string is only /SILENT, which can still pop up message
     // boxes, so always use the fully silent switches.
     if (RegExp(r'^unins\d{3}\.exe$').hasMatch(file)) {

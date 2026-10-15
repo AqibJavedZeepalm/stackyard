@@ -192,7 +192,17 @@ class CommandSpec {
     this.needsAdmin = false,
     this.warning,
     this.environment = const {},
+    this.watchPath,
+    this.terminal = false,
   });
+
+  /// macOS: run inside a pseudo-terminal. Some tools (git, inside fvm) print
+  /// their progress only to a terminal.
+  final bool terminal;
+
+  /// A folder the command fills. For tools that print no progress (FVM cloning
+  /// Flutter), its growing size is shown while the command runs.
+  final String? watchPath;
 
   final String title;
   final String executable;
@@ -417,4 +427,13 @@ enum LogoTint {
 
   /// A black logo that turns white in dark mode.
   foreground,
+}
+
+/// "Today", "12 days ago", "3 mo ago", "1 yr ago".
+String agoText(DateTime t) {
+  final d = DateTime.now().difference(t);
+  if (d.inDays >= 365) return '${(d.inDays / 365).floor()} yr ago';
+  if (d.inDays >= 30) return '${(d.inDays / 30).floor()} mo ago';
+  if (d.inDays >= 1) return '${d.inDays} days ago';
+  return 'Today';
 }

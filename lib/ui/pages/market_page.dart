@@ -17,6 +17,22 @@ import '../widgets.dart';
 /// Version lists, fetched once per run (they're big and change rarely).
 final _versionCache = <String, Future<List<MarketVersion>>>{};
 
+/// Tries twice, so one dropped request doesn't leave the page on an error.
+/// A failure isn't kept: opening the page again fetches again.
+Future<List<MarketVersion>> _loadVersions(MarketTool tool) async {
+  try {
+    return await tool.versions();
+  } catch (_) {
+    await Future<void>.delayed(const Duration(seconds: 2));
+    try {
+      return await tool.versions();
+    } catch (_) {
+      _versionCache.remove(tool.id);
+      rethrow;
+    }
+  }
+}
+
 /// Which versions of [tool] this computer has, from the last scan and the marketplace's own records.
 Future<Set<String>> installedVersions(AppState state, MarketTool tool) async {
   if (tool.viaNpm) {
@@ -227,7 +243,7 @@ class _ToolDetailState extends State<_ToolDetail> {
   bool _previews = false;
   int _shown = 60;
 
-  Future<List<MarketVersion>> get _versions => _versionCache[widget.tool.id] ??= widget.tool.versions();
+  Future<List<MarketVersion>> get _versions => _versionCache[widget.tool.id] ??= _loadVersions(widget.tool);
 
   @override
   Widget build(BuildContext context) {
@@ -297,6 +313,7 @@ class _ToolDetailState extends State<_ToolDetail> {
           future: Future.wait([_versions, installedVersions(state, tool)]),
           builder: (context, snap) {
             if (snap.hasError) {
+              debugPrint('${tool.id} versions: ${snap.error}');
               return Callout(
                 icon: WindowsIcons.error,
                 color: theme.resources.systemFillColorCritical,

@@ -1,0 +1,39 @@
+# Checks every push and pull request on both platforms Stackyard ships for:
+# analyze, the unit and widget tests, and a debug build of the desktop app.
+# Live tests (real downloads, simulators, your machine) stay local; see README → Tests.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Flutter version from .fvmrc
+        shell: bash
+        run: echo "FLUTTER=$(jq -r .flutter .fvmrc)" >> "$GITHUB_ENV"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build the app
+        shell: bash
+        run: flutter build ${{ runner.os == 'macOS' && 'macos' || 'windows' }} --debug

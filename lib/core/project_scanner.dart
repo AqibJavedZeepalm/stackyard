@@ -23,7 +23,7 @@ const watchedPackages = [
   'typescript',
 ];
 
-const _skipDirs = {
+const skipFolderNames = {
   'node_modules',
   '.git',
   'build',
@@ -108,7 +108,7 @@ class ProjectScanner {
     for (final e in entries) {
       if (e is! Directory) continue;
       final name = p.basename(e.path).toLowerCase();
-      if (_skipDirs.contains(name) || name.startsWith('.')) continue;
+      if (skipFolderNames.contains(name) || name.startsWith('.')) continue;
       _walk(e, depth + 1, maxDepth, found);
     }
   }
@@ -151,10 +151,19 @@ class ProjectScanner {
       } catch (_) {}
     }
 
+    // The folder itself and .git/index are left out: Finder, `git status` and
+    // moving the folder touch them without any work being done. The reflog's
+    // last entry is the time of the last commit, checkout or pull instead.
+    try {
+      final log = File(p.join(path, '.git', 'logs', 'HEAD'));
+      if (log.existsSync()) {
+        final m = RegExp(r'> (\d+) [+-]\d{4}\t').allMatches(log.readAsStringSync()).lastOrNull;
+        final t = m == null ? null : DateTime.fromMillisecondsSinceEpoch(int.parse(m[1]!) * 1000);
+        if (t != null && t.isAfter(best)) best = t;
+      }
+    } catch (_) {}
+
     for (final rel in [
-      '.',
-      '.git/index',
-      '.git/HEAD',
       'pubspec.lock',
       'pubspec.yaml',
       'package.json',
