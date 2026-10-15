@@ -26,30 +26,37 @@ void main() {
     expect(Doctor.javaMajor('1.8.0_392'), 8);
   });
 
-  test('PATH cleanup drops missing folders and repeats, keeps variables and the value type, and saves a backup', () async {
-    const key = r'HKCU\Software\StackyardTest';
-    final backup = p.join(Directory.systemTemp.createTempSync('stackyard-path-').path, 'backup.txt');
-    // %SystemRoot%\System32 repeats C:\Windows\System32 once expanded; C:\Windows\ and
-    // C:\Windows repeat C:\Windows; C:\Program Files stands in for "also in the system PATH".
-    const original = r'C:\Windows;C:\Windows\System32;%SystemRoot%\System32;C:\stackyard-missing-folder;C:\Windows\;C:\Windows;C:\Program Files';
-    await Process.run('reg.exe', ['add', key, '/v', 'Path', '/t', 'REG_EXPAND_SZ', '/d', original, '/f']);
-    addTearDown(() => Process.run('reg.exe', ['delete', key, '/f']));
+  test(
+    'PATH cleanup drops missing folders and repeats, keeps variables and the value type, and saves a backup',
+    () async {
+      const key = r'HKCU\Software\StackyardTest';
+      final backup = p.join(Directory.systemTemp.createTempSync('stackyard-path-').path, 'backup.txt');
+      // %SystemRoot%\System32 repeats C:\Windows\System32 once expanded; C:\Windows\ and
+      // C:\Windows repeat C:\Windows; C:\Program Files stands in for "also in the system PATH".
+      const original = r'C:\Windows;C:\Windows\System32;%SystemRoot%\System32;C:\stackyard-missing-folder;C:\Windows\;C:\Windows;C:\Program Files';
+      await Process.run('reg.exe', ['add', key, '/v', 'Path', '/t', 'REG_EXPAND_SZ', '/d', original, '/f']);
+      addTearDown(() => Process.run('reg.exe', ['delete', key, '/f']));
 
-    final change = Doctor.cleanPathAt(
-      r'HKCU:\Software\StackyardTest',
-      machine: false,
-      missing: [r'C:\stackyard-missing-folder'],
-      repeats: [r'%SystemRoot%\System32', r'C:\Windows\', r'C:\Windows'],
-      alsoInSystem: [r'C:\Program Files'],
-      backupTo: backup,
-    );
-    final cmd = change.commands.single;
-    final r = await Process.run(cmd.executable, cmd.arguments);
-    expect(r.exitCode, 0, reason: '${r.stderr}');
+      final change = Doctor.cleanPathAt(
+        r'HKCU:\Software\StackyardTest',
+        machine: false,
+        missing: [r'C:\stackyard-missing-folder'],
+        repeats: [r'%SystemRoot%\System32', r'C:\Windows\', r'C:\Windows'],
+        alsoInSystem: [r'C:\Program Files'],
+        backupTo: backup,
+      );
+      final cmd = change.commands.single;
+      final r = await Process.run(cmd.executable, cmd.arguments);
+      expect(r.exitCode, 0, reason: '${r.stderr}');
 
-    final after = (await Process.run('reg.exe', ['query', key, '/v', 'Path'])).stdout as String;
-    expect(after, contains('REG_EXPAND_SZ'));
-    expect(RegExp(r'REG_EXPAND_SZ\s+(.*)').firstMatch(after)![1]!.trim(), r'C:\Windows;C:\Windows\System32');
-    expect(File(backup).readAsStringSync().trim(), original);
-  }, skip: !Platform.isWindows);
+      final after = (await Process.run('reg.exe', ['query', key, '/v', 'Path'])).stdout as String;
+      expect(after, contains('REG_EXPAND_SZ'));
+      expect(RegExp(r'REG_EXPAND_SZ\s+(.*)').firstMatch(after)![1]!.trim(), r'C:\Windows;C:\Windows\System32');
+      expect(File(backup).readAsStringSync().trim(), original);
+    },
+    skip: !Platform.isWindows,
+    // The command tells every window the environment changed, which can take
+    // well over 30 seconds on a busy CI runner.
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 }
