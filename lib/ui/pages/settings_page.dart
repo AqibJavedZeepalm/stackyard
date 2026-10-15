@@ -127,12 +127,13 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
         ),
+        if (Sys.hasGlass)
         row(
           11,
           icon: WindowsIcons.personalize,
           title: 'Glass',
           subtitle: Sys.isWindows
-              ? 'How much your wallpaper tints the window (Mica), like other Windows 11 apps. 0% is solid.'
+              ? 'How much your desktop shows through the window, like Windows Terminal. 0% is solid.'
               : 'How much the desktop shows through the window, like Finder and Mail. 0% is solid.',
           trailing: const GlassSlider(),
         ),

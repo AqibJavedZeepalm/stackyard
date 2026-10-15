@@ -257,7 +257,7 @@ class _OnboardingState extends State<Onboarding> {
             ),
           ),
         ),
-        if (Platform.isWindows || Platform.isMacOS) row('Glass', 'How much the desktop shows through. Try it: the window changes as you drag.', const GlassSlider()),
+        if (Sys.hasGlass) row('Glass', 'How much the desktop shows through. Try it: the window changes as you drag.', const GlassSlider()),
         row(
           'Keep running when closed',
           'Stays in the $where and tells you when something needs attention.',

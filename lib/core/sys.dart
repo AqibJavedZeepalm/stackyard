@@ -78,6 +78,12 @@ class Sys {
 
   static bool get isWindows => Platform.isWindows;
 
+  /// The Windows build number ("10.0 (Build 26200)" → 26200), or 0 elsewhere.
+  static final int windowsBuild = int.tryParse(RegExp(r'Build (\d+)').firstMatch(Platform.operatingSystemVersion)?[1] ?? '') ?? 0;
+
+  /// Windows 11 and macOS can show the desktop through the window.
+  static bool get hasGlass => Platform.isMacOS || (isWindows && windowsBuild >= 22000);
+
   /// Platform words for the UI.
   static String get trashName => isWindows ? 'Recycle Bin' : 'Trash';
   static String get fileManager => isWindows ? 'Explorer' : 'Finder';

@@ -7,6 +7,7 @@ import 'package:system_theme/system_theme.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'core/autostart.dart';
+import 'core/sys.dart';
 import 'state/app_state.dart';
 import 'state/background.dart';
 import 'state/settings.dart';
@@ -100,7 +101,7 @@ class _StackyardAppState extends State<StackyardApp> with WidgetsBindingObserver
     final settings = context.watch<Settings>();
     final accent = SystemTheme.accentColor.accent.toAccentColor();
     // Mica on Windows 11, the sidebar material (vibrancy) on macOS.
-    final glass = Platform.isWindows || Platform.isMacOS ? settings.glass / 100 : 0.0;
+    final glass = Sys.hasGlass ? settings.glass / 100 : 0.0;
     final mica = glass > 0;
 
     WidgetsBinding.instance.addPostFrameCallback((_) => applyWindowEffect(settings));
@@ -157,9 +158,19 @@ Future<void> applyWindowEffect(Settings settings, {bool force = false}) async {
     );
     return;
   }
+  // Mica in dark mode is nearly the same #202020 the app paints, so the slider
+  // changed nothing you could see. Acrylic (the blur Windows Terminal uses) does
+  // show the desktop through. Early Windows 11 builds only have Mica, and
+  // Windows 10's acrylic lags while the window moves, so it stays solid there.
+  final build = Sys.windowsBuild;
+  final effect = !settings.mica || build < 22000
+      ? acrylic.WindowEffect.solid
+      : build >= 22523
+      ? acrylic.WindowEffect.acrylic
+      : acrylic.WindowEffect.mica;
   await acrylic.Window.setEffect(
-    effect: settings.mica ? acrylic.WindowEffect.mica : acrylic.WindowEffect.solid,
-    color: settings.mica ? Colors.transparent : (dark ? const Color(0xFF202020) : const Color(0xFFF3F3F3)),
+    effect: effect,
+    color: effect == acrylic.WindowEffect.solid ? (dark ? const Color(0xFF202020) : const Color(0xFFF3F3F3)) : Colors.transparent,
     dark: dark,
   );
 }
