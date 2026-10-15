@@ -135,7 +135,7 @@ Windows releases: free code signing provided by [SignPath.io](https://signpath.i
 - Committers and reviewers: [members of this repository](https://github.com/AqibJavedZeepalm/stackyard/graphs/contributors)
 - Approvers: the repository owner, [Aqib Javed](https://github.com/AqibJavedZeepalm)
 
-Every release is built from this repository's source by GitHub Actions ([release.yml](.github/workflows/release.yml)); nothing is built or signed on a personal machine.
+The Windows installer is built from this repository's source and signed by GitHub Actions ([release.yml](.github/workflows/release.yml)). The macOS DMG is built from the same tagged commit with [tool/release-mac.sh](tool/release-mac.sh), signed, and notarized by Apple, so macOS checks it before it opens.
 
 ## Privacy
 

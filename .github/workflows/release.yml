@@ -179,7 +179,8 @@ jobs:
           name: Stackyard-${{ env.VERSION }}-macOS
           path: dist/Stackyard-${{ env.VERSION }}.dmg
       - name: Attach to draft release
-        if: github.ref_type == 'tag'
+        # Unsigned DMGs never reach a release; tool/release-mac.sh attaches the notarized one.
+        if: github.ref_type == 'tag' && env.SIGN == 'true'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           draft: true

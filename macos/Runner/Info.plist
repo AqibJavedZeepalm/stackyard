@@ -30,5 +30,15 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Stackyard looks for projects on your Desktop to see which SDK versions they use. It only reads them and never changes your projects.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Stackyard looks for projects in Documents to see which SDK versions they use. It only reads them and never changes your projects.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Stackyard looks for projects in Downloads to see which SDK versions they use. It only reads them and never changes your projects.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Your project folders or SDKs are on this drive. Stackyard reads them to see which versions your projects use, and never changes your projects.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>Your project folders or SDKs are on this network drive. Stackyard reads them to see which versions your projects use, and never changes your projects.</string>
 </dict>
 </plist>

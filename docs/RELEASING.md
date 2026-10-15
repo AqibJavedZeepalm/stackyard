@@ -7,7 +7,7 @@ Releases are built on GitHub by `.github/workflows/release.yml`:
 
 ## Where the signing secrets live
 
-Signing secrets are **environment secrets** in the `release` environment, never repository secrets. That environment only serves `v*` tags and waits for the owner to approve each run, so no other workflow, branch or pull request can read them. Every action in the workflows is pinned to an exact commit, so a hijacked action tag can't run inside a signing job.
+Signing secrets on GitHub (SignPath's, and Apple's only if you sign on CI) are **environment secrets** in the `release` environment, never repository secrets. That environment only serves `v*` tags and waits for the owner to approve each run, so no other workflow, branch or pull request can read them. Every action in the workflows is pinned to an exact commit, so a hijacked action tag can't run inside a signing job.
 
 If a secret might have leaked: revoke the Developer ID certificate in the Apple Developer portal and the app-specific password at account.apple.com, rotate the SignPath API token, then replace the secrets.
 
@@ -18,11 +18,11 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The workflow builds both, then attaches them to a **draft** release on GitHub. Check it, write the notes, and press **Publish**.
+The workflow builds and tests both, and attaches the Windows installer to a **draft** release on GitHub. Then add the notarized Mac DMG from your Mac with `tool/release-mac.sh` (see below). Check the draft, write the notes, and press **Publish**.
 
 To try a build without releasing, open **Actions → Release → Run workflow**. The files appear under that run's **Artifacts**.
 
-Signing turns on by itself once its secrets exist. Without them, the builds are unsigned: Windows shows "Windows protected your PC" and macOS refuses to open the app.
+Windows signing turns on by itself once the SignPath secrets exist; until then the installer is unsigned and Windows shows "Windows protected your PC". An unsigned Mac DMG is never attached to a release, because macOS would refuse to open it.
 
 ## Windows signing: SignPath Foundation (free for open source)
 
@@ -57,18 +57,35 @@ A newly signed app can still show a SmartScreen warning for its first downloads,
 
 ## macOS signing and notarization
 
-You need a **Developer ID Application** certificate from your Apple Developer account.
+The DMG is signed and notarized on the maintainer's Mac with `tool/release-mac.sh`, so the Apple certificate and notarization credentials never leave that Mac. The release workflow still builds and tests macOS, but it attaches a DMG only if it signed one itself (see "Signing on CI instead" below).
 
-1. In Xcode → Settings → Accounts → Manage Certificates, create a "Developer ID Application" certificate. Then, in Keychain Access, export it with its private key as a `.p12` file, with a password.
-2. Create an app-specific password at <https://account.apple.com> → Sign-In and Security → App-Specific Passwords.
-3. In GitHub → Settings → Environments → **release** → Environment secrets, add:
+One-time setup:
+
+1. A **Developer ID Application** certificate in your keychain (Xcode → Settings → Accounts → Manage Certificates → + → Developer ID Application). `security find-identity -v -p codesigning` lists it.
+2. A notarization profile, saved in your keychain:
+
+   ```bash
+   xcrun notarytool store-credentials notary --apple-id you@example.com --team-id TEAMID
+   ```
+
+   It asks for an app-specific password from account.apple.com → Sign-In and Security → App-Specific Passwords.
+
+Each release, after pushing the tag (the workflow creates the draft release with the Windows installer):
+
+```bash
+SIGN="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE=notary tool/release-mac.sh 1.0.1
+```
+
+It builds that version, signs it with the hardened runtime, makes the DMG, notarizes and staples it, checks it with Gatekeeper, and attaches it to the `v1.0.1` draft release. `UPLOAD=0` does everything except the upload. Then check the draft and press **Publish**.
+
+### Signing on CI instead
+
+If you'd rather sign on GitHub, add these as environment secrets in the `release` environment; the workflow then signs, notarizes and attaches the DMG itself:
 
 | Secret | Value |
 |---|---|
-| `MACOS_CERT_P12` | The `.p12` file as base64: `base64 -i cert.p12 \| pbcopy` |
+| `MACOS_CERT_P12` | The Developer ID certificate and its private key, exported from Keychain Access as `.p12`, as base64: `base64 -i cert.p12 \| pbcopy` |
 | `MACOS_CERT_PASSWORD` | The `.p12` password |
 | `APPLE_ID` | Your Apple ID email |
-| `APPLE_TEAM_ID` | Your 10-character Team ID (Apple Developer → Membership) |
-| `APPLE_APP_PASSWORD` | The app-specific password |
-
-The workflow signs the app with the hardened runtime, builds the DMG, sends it to Apple for notarization, and staples the ticket. People can then open it with a double-click.
+| `APPLE_TEAM_ID` | Your 10-character Team ID |
+| `APPLE_APP_PASSWORD` | An app-specific password |
