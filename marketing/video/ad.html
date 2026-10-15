@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stackyard — 47s</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=block">
+<style>
+  :root {
+    --ink: #06080d;
+    --line: rgba(255,255,255,.08);
+    --text: #eef2f8;
+    --muted: #8b95a7;
+    --accent: #3aa0ff;
+    --accent-2: #7cf5ff;
+    --warn: #ffb547;
+    --ok: #3ee08a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; }
+  body { width: 1920px; height: 1080px; overflow: hidden; font-family: "Geist", system-ui, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+  #stage { position: absolute; inset: 0; overflow: hidden; background: var(--ink); }
+  .abs { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+  .serif { font-family: "Instrument Serif", serif; font-style: italic; font-weight: 400; letter-spacing: -.01em; }
+  .logo { display: inline-block; flex: none; }
+  .logo img { width: 100%; height: 100%; display: block; }
+  .chip { position: absolute; left: 0; top: 0; padding: 10px 20px 10px 14px; border-radius: 999px; font: 500 26px "Geist Mono", monospace; white-space: nowrap; color: #fff; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); display: flex; align-items: center; gap: 12px; }
+  .line { position: absolute; left: 0; width: 100%; text-align: center; font-weight: 800; letter-spacing: -.045em; line-height: 1; }
+  .mask { display: inline-block; overflow: hidden; padding: 0 .06em .14em; vertical-align: top; }
+  .mask > span { display: inline-flex; align-items: center; gap: .22em; }
+  .hw { display: inline-block; overflow: hidden; padding: 0 .03em .14em; vertical-align: top; }
+  .hw > span { display: inline-block; }
+  .win { position: absolute; border-radius: 22px; overflow: hidden; background: rgba(16,21,32,.86); border: 1px solid rgba(255,255,255,.10); box-shadow: 0 80px 160px rgba(0,0,0,.55), 0 20px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06); }
+  .side { position: absolute; left: 0; top: 0; bottom: 0; width: 300px; background: rgba(255,255,255,.025); border-right: 1px solid var(--line); padding: 70px 18px 18px; }
+  .navi { display: flex; align-items: center; gap: 14px; height: 42px; padding: 0 14px; border-radius: 10px; font-size: 19px; color: #dfe6f1; }
+  .navh { font-size: 14px; font-weight: 600; color: var(--muted); padding: 16px 14px 6px; letter-spacing: .02em; }
+  .card { border-radius: 16px; background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+  .row { display: flex; align-items: center; gap: 18px; height: 64px; padding: 0 24px; border-top: 1px solid var(--line); font-size: 20px; }
+  .row:first-child { border-top: 0; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .sub { font-size: 15px; color: var(--muted); margin-top: 3px; }
+  .size { margin-left: auto; font-family: "Geist Mono", monospace; font-size: 19px; color: #c7d0de; font-variant-numeric: tabular-nums; }
+  .pill { position: absolute; padding: 16px 30px; border-radius: 999px; font-size: 34px; font-weight: 600; background: rgba(20,28,44,.72); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(18px); box-shadow: 0 20px 60px rgba(0,0,0,.45); white-space: nowrap; }
+  .pill b { color: var(--accent-2); font-weight: 600; }
+  .check { width: 26px; height: 26px; border-radius: 7px; border: 2px solid rgba(255,255,255,.35); display: grid; place-items: center; flex: none; }
+  .tile { position: absolute; left: 0; top: 0; width: 230px; height: 230px; }
+  .gl { position: absolute; left: 0; top: 0; width: 200px; text-align: center; font-size: 22px; color: #c3ccda; font-weight: 500; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- Ambient light -->
+  <div id="glowA" class="abs" style="width:1600px;height:1600px;border-radius:50%;background:radial-gradient(closest-side, rgba(58,160,255,.22), rgba(58,160,255,0));"></div>
+  <div id="glowB" class="abs" style="width:1400px;height:1400px;border-radius:50%;background:radial-gradient(closest-side, rgba(124,245,255,.12), rgba(124,245,255,0));"></div>
+  <div id="grid" class="abs" style="width:1920px;height:1140px;background-image:linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);background-size:60px 60px;opacity:0;"></div>
+
+  <!-- Chips (built once at load; positions are pure functions of time) -->
+  <div id="chips" class="abs" style="width:1920px;height:1080px;"></div>
+
+  <!-- S1: the hook -->
+  <div id="q" class="abs mono" style="width:1920px;text-align:center;font-size:46px;color:#cfd7e3;">
+    <span id="qText"></span><span id="caret" style="display:inline-block;width:22px;height:48px;background:var(--accent);vertical-align:-8px;margin-left:6px;"></span>
+  </div>
+  <div id="hook" class="abs" style="width:1920px;height:1080px;">
+    <div class="line" id="h1" style="top:368px;font-size:140px;"></div>
+    <div class="line" id="h2" style="top:528px;font-size:140px;"></div>
+  </div>
+
+  <!-- S2: the counts -->
+  <div id="kin" class="abs" style="width:1920px;height:1080px;"></div>
+
+  <!-- S3/S7: logo -->
+  <div id="logo" class="abs" style="width:0;height:0;">
+    <div id="bar1" class="abs" style="height:34px;border-radius:12px;background:var(--accent);"></div>
+    <div id="bar2" class="abs" style="height:34px;border-radius:12px;background:#5db2ff;"></div>
+    <div id="bar3" class="abs" style="height:34px;border-radius:12px;background:var(--accent-2);"></div>
+  </div>
+  <div id="word" class="abs" style="font-size:150px;font-weight:800;letter-spacing:-.05em;white-space:nowrap;"></div>
+  <div id="tag" class="abs" style="width:1920px;text-align:center;font-size:52px;font-weight:500;letter-spacing:-.02em;">
+    <span id="tagA">Know your stack.</span>&nbsp;<span id="tagB" style="color:var(--accent-2)">Free your disk.</span>
+  </div>
+
+  <!-- S4a: app window in 3D -->
+  <div id="cam" class="abs" style="width:1920px;height:1080px;perspective:2400px;perspective-origin:50% 40%;">
+    <div id="app" class="win" style="left:200px;top:110px;width:1520px;height:880px;transform-origin:50% 50%;">
+      <div class="abs" style="left:24px;top:22px;display:flex;gap:10px;z-index:3;">
+        <div style="width:14px;height:14px;border-radius:50%;background:#ff5f57"></div>
+        <div style="width:14px;height:14px;border-radius:50%;background:#febc2e"></div>
+        <div style="width:14px;height:14px;border-radius:50%;background:#28c840"></div>
+      </div>
+      <div class="side" id="side"></div>
+      <div class="abs" style="left:340px;top:56px;right:40px;">
+        <div style="font-size:40px;font-weight:700;letter-spacing:-.03em;">Overview</div>
+        <div class="card" style="margin-top:26px;padding:30px 34px;">
+          <div style="font-size:18px;color:var(--muted)">You can free</div>
+          <div id="hero" style="font-size:118px;font-weight:700;letter-spacing:-.05em;color:var(--accent-2);line-height:1.02;font-variant-numeric:tabular-nums;">0.0 GB</div>
+          <div style="font-size:17px;color:var(--muted);">14 unused or broken items · 71.4 GB of dev tools on this PC</div>
+          <div id="bar" style="position:relative;height:14px;border-radius:7px;background:rgba(255,255,255,.06);margin-top:26px;overflow:hidden;"></div>
+          <div id="legend" style="display:flex;gap:26px;margin-top:16px;font-size:16px;color:#c3ccda;"></div>
+        </div>
+        <div style="font-size:19px;font-weight:600;margin:28px 0 12px;">Needs attention</div>
+        <div class="card" id="attn"></div>
+      </div>
+    </div>
+    <div id="c1" class="pill">Every <b>SDK</b></div>
+    <div id="c2" class="pill">Every <b>toolchain</b></div>
+    <div id="c3" class="pill">Every <b>framework</b></div>
+  </div>
+
+  <!-- S4b: roll call, then the wall -->
+  <div id="roll" class="abs" style="width:1920px;height:1080px;"></div>
+  <div id="wallCap" class="abs mono" style="width:1920px;text-align:center;font-size:28px;color:var(--muted);letter-spacing:.04em;">Only what's on your machine shows up.</div>
+
+  <!-- S5: versions ↔ projects graph -->
+  <div id="graph" class="abs" style="width:1920px;height:1080px;">
+    <div id="gHead" class="abs" style="font-size:84px;font-weight:800;letter-spacing:-.045em;">Knows <span class="serif" style="font-weight:400;color:var(--accent-2)">who uses what.</span></div>
+    <div id="vers" class="card abs" style="width:800px;"></div>
+    <div id="projs" class="card abs" style="width:620px;"></div>
+    <svg id="links" class="abs" width="1920" height="1080" style="overflow:visible;"></svg>
+    <div id="unusedPill" class="pill" style="border-color:rgba(255,181,71,.5);">Nothing uses <b style="color:var(--warn)">3.6 GB</b></div>
+  </div>
+
+  <!-- S6: cleanup -->
+  <div id="clean" class="abs" style="width:1920px;height:1080px;">
+    <div id="cHead" class="abs" style="font-size:84px;font-weight:800;letter-spacing:-.045em;white-space:nowrap;"><span id="cA">One click.</span> <span id="cB" class="serif" style="font-weight:400;color:var(--warn)">Gigabytes back.</span></div>
+    <div id="wins" class="card abs" style="left:120px;top:280px;width:1000px;"></div>
+    <div id="btn" class="abs" style="height:76px;padding:0 40px;border-radius:16px;display:flex;align-items:center;font-size:28px;font-weight:700;background:var(--accent);color:#04121f;">Clean up 12.4 GB</div>
+    <div id="freed" class="abs" style="width:640px;">
+      <div style="font-size:26px;color:var(--muted);">Freed</div>
+      <div id="freedNum" style="font-size:190px;font-weight:800;letter-spacing:-.06em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ok);">0.0</div>
+      <div style="font-size:60px;font-weight:700;letter-spacing:-.03em;margin-top:-6px;">GB</div>
+    </div>
+    <!-- Recycle Bin -->
+    <div id="binWrap" class="abs" style="width:260px;height:300px;">
+      <svg id="binLid" class="abs" width="260" height="60" viewBox="0 0 260 60" style="transform-origin:30px 50px;"><rect x="20" y="30" width="220" height="22" rx="8" fill="#cfe3ff"/><rect x="100" y="12" width="60" height="24" rx="8" fill="none" stroke="#cfe3ff" stroke-width="8"/></svg>
+      <svg class="abs" style="top:58px;" width="260" height="240" viewBox="0 0 260 240"><defs><linearGradient id="binG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd0ff"/><stop offset="1" stop-color="#3a8eea"/></linearGradient></defs><path d="M32 0 H228 L210 222 Q208 238 192 238 H68 Q52 238 50 222 Z" fill="url(#binG)"/><g stroke="rgba(4,18,31,.35)" stroke-width="8" stroke-linecap="round"><path d="M92 40 L98 200"/><path d="M130 40 V200"/><path d="M168 40 L162 200"/></g></svg>
+    </div>
+    <div id="drops" class="abs" style="width:1920px;height:1080px;"></div>
+    <div id="bin" class="abs" style="width:1920px;text-align:center;font-size:36px;color:#c3ccda;">Moved to the Recycle Bin. <span style="color:var(--muted)">Nothing's gone for good.</span></div>
+    <svg id="cursor" class="abs" width="44" height="54" viewBox="0 0 22 27" style="filter:drop-shadow(0 6px 12px rgba(0,0,0,.6));"><path d="M2 1.5 L2 22 L7.5 17 L11.2 25.3 L14.6 23.8 L10.9 15.7 L18.5 15.7 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <div id="ripple" class="abs" style="width:80px;height:80px;border-radius:50%;border:3px solid var(--accent-2);"></div>
+  </div>
+
+  <!-- End card extras -->
+  <div id="end2" class="abs mono" style="width:1920px;text-align:center;font-size:26px;color:var(--muted);letter-spacing:.18em;">OPEN SOURCE &nbsp;·&nbsp; WINDOWS &nbsp;·&nbsp; MACOS</div>
+
+  <div id="flash" class="abs" style="width:1920px;height:1080px;background:#fff;opacity:0;mix-blend-mode:overlay;"></div>
+  <div class="abs" style="width:1920px;height:1080px;pointer-events:none;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.55) 100%);"></div>
+</div>
+
+<script src="logos.js"></script>
+<script>
+// ---------- Time helpers. Everything is a pure function of t (seconds). ----------
+// Cues follow the Ava voiceover (voice/words.json); the line start times are in VO below.
+const DUR = 47.5;
+const W = 1920, H = 1080;
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const ease = {
+  outExpo: (k) => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k)),
+  inExpo: (k) => (k <= 0 ? 0 : Math.pow(2, 10 * k - 10)),
+  inOutExpo: (k) => k <= 0 ? 0 : k >= 1 ? 1 : k < .5 ? Math.pow(2, 20 * k - 10) / 2 : (2 - Math.pow(2, -20 * k + 10)) / 2,
+  outCubic: (k) => 1 - Math.pow(1 - k, 3),
+  inOutCubic: (k) => (k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2),
+  inCubic: (k) => k * k * k,
+  outBack: (k) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); },
+  spring: (k) => k >= 1 ? 1 : 1 - Math.exp(-7 * k) * Math.cos(9 * k),
+};
+const fmtGB = (v) => v.toFixed(1) + ' GB';
+const set = (el, s) => { for (const k in s) el.style[k] = s[k]; };
+const tf = (x, y, s = 1, r = 0) => `translate3d(${x}px,${y}px,0) scale(${s}) rotate(${r}deg)`;
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// Voiceover line starts (seconds) and word cues relative to the whole video.
+const VO = [0.30, 4.40, 13.40, 15.60, 30.30, 35.80, 42.20];
+const WORDS = {};
+fetchWords: {
+  // Word offsets from voice/words.json, inlined so the page works from file://.
+  const w = {
+    1: { quick: .1, how: 1.337, many: 1.575, sdks: 1.8, are: 2.462, hiding: 2.625, on: 2.987, your: 3.087, laptop: 3.2 },
+    2: { six: .1, four: 1.8, three: 2.9, two: 4.812, and: 6.037, java: 6.312, you: 6.787 },
+    3: { meet: .1, stackyard: .4 },
+    4: { every: .1, sdk: .463, toolchain: 1.512, framework: 2.275, one: 3.85, calm: 4.088, window: 4.325, flutter: 5.15, node: 6.125, python: 7.037, java: 8.113, dotnet: 9.088, android: 10.113, react: 11.15, next: 12.162, more: 13.287 },
+    5: { it: .1, project: .925, uses: 1.413, version: 1.962, and: 2.8, nothing: 3.575, all: 4.312 },
+    6: { one: .1, click: .4, gigabytes: 1.1, straight: 2.6, recycle: 3.225, so: 4.25 },
+    7: { stackyard: .1, know: 1.3, free: 2.525 },
+  };
+  for (const l in w) for (const k in w[l]) WORDS[`${l}.${k}`] = +(VO[l - 1] + w[l][k]).toFixed(3);
+}
+const at = (key) => WORDS[key];
+
+// ---------- Data ----------
+const TECH = {
+  fl: ['#47C5FB', 'Flutter'], nd: ['#6CC24A', 'Node.js'], an: ['#3DDC84', 'Android SDK'], gr: ['#209BC4', 'Gradle'],
+  jv: ['#F89820', 'Java'], py: ['#FFD43B', 'Python'], dn: ['#8C6FF0', '.NET'], re: ['#58C4DC', 'React'],
+  nx: ['#FFFFFF', 'Next.js'], vi: ['#A78BFA', 'Vite'], ts: ['#3178C6', 'TypeScript'], vu: ['#42B883', 'Vue'],
+  ng: ['#DD0031', 'Angular'], sv: ['#FF3E00', 'Svelte'], as: ['#BC52EE', 'Astro'], el: ['#47848F', 'Electron'],
+  nu: ['#00DC82', 'Nuxt'], ex: ['#FFFFFF', 'Expo'],
+};
+const LOGO_URL = {};
+for (const k in LOGO_SVG) LOGO_URL[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(LOGO_SVG[k]);
+const logo = (k, size) => `<span class="logo" style="width:${size}px;height:${size}px;"><img src="${LOGO_URL[k]}"></span>`;
+
+const CHIP_TEXT = [
+  ['fl', '3.22.3'], ['nd', 'v18.19.0'], ['an', 'NDK 23.1'], ['py', 'Python 3.10'], ['jv', 'jdk-11'], ['dn', '.NET 6.0'],
+  ['fl', '3.24.3'], ['nd', 'v20.11.0'], ['an', 'API 33'], ['gr', 'gradle-7.5.1'], ['re', 'react 18.3.1'], ['ts', 'typescript 5.8'],
+  ['fl', '3.27.1'], ['nd', 'v22.11.0'], ['an', 'NDK 25.1'], ['py', 'Python 3.12'], ['jv', 'jdk-17'], ['nx', 'next 15.5'],
+  ['fl', '3.29.2'], ['vi', 'vite 6.4'], ['an', 'Pixel 6 · API 33'], ['gr', 'gradle-8.11.1'], ['dn', '.NET 8.0'], ['vu', 'vue 3.5'],
+  ['fl', '3.35.5'], ['nd', 'v24.2.0'], ['an', 'NDK 28.0'], ['py', 'Python 3.13'], ['jv', 'jre-1.8'], ['ng', 'angular 19'],
+  ['fl', '3.47.7'], ['sv', 'svelte 5'], ['an', 'build-tools 34.0.0'], ['el', 'electron 36'], ['ex', 'expo 53'], ['as', 'astro 5.7'],
+  ['nu', 'nuxt 3.17'], ['re', 'react 19.2'], ['nx', 'next 16.0'], ['ts', 'typescript 4.9'],
+];
+const CHIPS = [];
+{
+  const r = rng(11);
+  const n = 80;
+  for (let i = 0; i < n; i++) {
+    const [tech, label] = CHIP_TEXT[i % CHIP_TEXT.length];
+    const angle = r() * Math.PI * 2, dist = 420 + r() * 760;
+    CHIPS.push({
+      tech, label, i,
+      tx: W / 2 + Math.cos(angle) * dist * 1.25 - 120, ty: H / 2 + Math.sin(angle) * dist * .62 - 30,
+      rot: (r() - .5) * 34, spin: (r() - .5) * 16, scale: .72 + r() * .7, ph: r() * 6.28,
+      peek: 2.75 + r() * 1.1, drift: (r() - .5) * 60, bar: i % 3, slot: Math.floor(i / 3),
+    });
+  }
+  for (const c of CHIPS) {
+    const el = document.createElement('div');
+    el.className = 'chip';
+    el.innerHTML = `${logo(c.tech, 30)}${c.label}`;
+    $('chips').appendChild(el);
+    c.el = el;
+  }
+}
+
+// Hook headline, one masked word at a time.
+const HOOK = [
+  ['h1', 'How', '1.how'], ['h1', 'many', '1.many'], ['h1', '<span style="color:var(--accent-2)">SDKs</span>', '1.sdks'], ['h1', 'are', '1.are'],
+  ['h2', '<span class="serif" style="font-size:1.12em;color:var(--warn)">hiding</span>', '1.hiding'], ['h2', 'on', '1.on'], ['h2', 'your', '1.your'], ['h2', 'laptop?', '1.laptop'],
+];
+for (const [line, html, cue] of HOOK) {
+  const w = document.createElement('span'); w.className = 'hw'; w.innerHTML = `<span>${html}</span>`; w.dataset.cue = cue;
+  $(line).appendChild(w); $(line).appendChild(document.createTextNode(' '));
+}
+
+// The counts. keep: stays on screen when the next line arrives (the Java punchline).
+const COUNTS = [
+  ['fl', '6', 'Flutter versions.', '2.six'],
+  ['nd', '4', 'Nodes.', '2.four'],
+  ['an', '3', 'Android NDKs.', '2.three'],
+  ['py', '2', 'Pythons.', '2.two'],
+  ['jv', '…and a', 'Java', '2.and'],
+  [null, '', 'you don\'t even remember installing.', '2.you'],
+];
+COUNTS.forEach(([k, num, text, cue], i) => {
+  const el = document.createElement('div'); el.className = 'line';
+  el.style.fontSize = k ? '140px' : '96px';
+  const numHtml = num ? `<em style="font-style:normal;color:${TECH[k][0]}">${num}</em>` : '';
+  const body = k === 'jv'
+    ? `${numHtml}${logo(k, 150)}<span>${text}</span>`
+    : k ? `${logo(k, 132)}${numHtml}<span>${text}</span>` : `<span class="serif" style="font-weight:400;color:#cfd7e3;">${text}</span>`;
+  el.innerHTML = `<span class="mask"><span>${body}</span></span>`;
+  el.dataset.cue = cue;
+  $('kin').appendChild(el);
+});
+
+// Sidebar, legend, bar, attention rows in the product shot.
+const SIDE = [['ov', 'Overview'], ['h', 'Toolchains'], ['fl'], ['nd'], ['an'], ['gr'], ['jv'], ['py'], ['dn'], ['h', 'Frameworks'], ['re'], ['nx'], ['vi'], ['ts']];
+for (const [k, label] of SIDE) {
+  const el = document.createElement('div');
+  if (k === 'h') { el.className = 'navh'; el.textContent = label; }
+  else if (k === 'ov') { el.className = 'navi'; el.style.background = 'rgba(255,255,255,.07)'; el.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dfe6f1" stroke-width="1.8"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Overview`; }
+  else { el.className = 'navi'; el.innerHTML = `${logo(k, 24)}${TECH[k][1]}`; }
+  el.dataset.k = k;
+  $('side').appendChild(el);
+}
+const STORAGE = [['an', 39.6], ['gr', 18.9], ['fl', 9.4], ['py', 2.8], ['dn', 1.9], ['jv', .6], ['nd', .08]];
+const TOTAL = STORAGE.reduce((s, x) => s + x[1], 0);
+for (const [k, gb] of STORAGE) {
+  const seg = document.createElement('div');
+  seg.style.cssText = `position:absolute;top:0;bottom:0;background:${TECH[k][0]};border-radius:7px;`;
+  seg.dataset.gb = gb; $('bar').appendChild(seg);
+  const lg = document.createElement('div');
+  lg.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${TECH[k][0]};margin-right:9px;"></span>${TECH[k][1]} <span style="color:var(--muted)">${gb >= 1 ? gb.toFixed(1) + ' GB' : Math.round(gb * 1000) + ' MB'}</span>`;
+  $('legend').appendChild(lg);
+}
+for (const [k, text, warn] of [
+  ['nd', 'Node.js 24.2.0 is available. You\'re on 22.11.0.', false],
+  ['fl', 'orbit-notes pins Flutter 3.19.6, which isn\'t installed.', true],
+  ['py', 'Python 3.9 in the py launcher points to a folder that\'s gone.', true],
+]) {
+  const el = document.createElement('div'); el.className = 'row';
+  el.innerHTML = `<span style="color:${warn ? 'var(--warn)' : 'var(--accent)'};font-size:22px;width:14px;">${warn ? '!' : '↓'}</span>${logo(k, 24)}<span>${text}</span>`;
+  $('attn').appendChild(el);
+}
+
+// Roll call: each tech lands as Ava names it, then everything forms the wall.
+const ROLL = [
+  ['fl', '4.flutter', 'FVM, standalone SDKs, every project\'s pin'],
+  ['nd', '4.node', 'nvm · fnm · Volta · system installs'],
+  ['py', '4.python', 'uv · pyenv · the py launcher'],
+  ['jv', '4.java', 'Every JDK and JRE, wherever it lives'],
+  ['dn', '4.dotnet', 'SDKs and runtimes'],
+  ['an', '4.android', 'Platforms · NDKs · emulators'],
+  ['re', '4.react', 'Which version each project uses'],
+  ['nx', '4.next', 'Which version each project uses'],
+];
+const EXTRA = ['gr', 'vi', 'ts', 'vu', 'ng', 'sv', 'as', 'el', 'nu', 'ex'];
+const WALL = [...ROLL.map((r) => r[0]), ...EXTRA];
+const ROLL_EL = [];
+WALL.forEach((k, i) => {
+  const tile = document.createElement('div'); tile.className = 'tile'; tile.innerHTML = logo(k, 230);
+  const label = document.createElement('div'); label.className = 'gl'; label.textContent = TECH[k][1];
+  $('roll').appendChild(tile); $('roll').appendChild(label);
+  ROLL_EL.push({ k, tile, label });
+});
+const rollName = document.createElement('div'); rollName.className = 'abs'; rollName.style.cssText += 'font-size:150px;font-weight:800;letter-spacing:-.05em;white-space:nowrap;line-height:1;';
+rollName.innerHTML = '<span class="hw"><span id="rnText"></span></span>';
+const rollSub = document.createElement('div'); rollSub.className = 'abs mono'; rollSub.style.cssText += 'font-size:34px;color:var(--muted);white-space:nowrap;';
+$('roll').appendChild(rollName); $('roll').appendChild(rollSub);
+
+// Versions ↔ projects (made-up projects, mixed techs).
+const VERS = [
+  ['fl', 'Flutter 3.35.5', 'use', 'Used by 2 projects', '989 MB'],
+  ['nd', 'Node.js 22.11.0', 'global', 'Global · used by 3 projects', '84 MB'],
+  ['py', 'Python 3.12.4', 'use', 'Used by 1 project', '108 MB'],
+  ['jv', 'Java jdk-17', 'use', 'Used by 1 project', '312 MB'],
+  ['fl', 'Flutter 3.22.3', 'unused', 'Unused', '1.1 GB'],
+  ['nd', 'Node.js 18.19.0', 'unused', 'Unused', '79 MB'],
+  ['an', 'Android NDK 23.1', 'unused', 'Unused', '2.4 GB'],
+];
+const PROJ = [['pixel-pantry', [0, 3]], ['orbit-notes', [0]], ['driftboard', [1]], ['nova-api', [1, 2]], ['lumen-web', [1]]];
+const DOT = { use: '#3ee08a', global: '#3aa0ff', unused: 'transparent' };
+const V_TOP = 290, P_TOP = 368, ROW = 77;
+for (const [k, v, st, label, gb] of VERS) {
+  const el = document.createElement('div'); el.className = 'row'; el.style.height = '76px';
+  el.innerHTML = `<span class="dot" style="background:${DOT[st]};border:2px solid ${st === 'unused' ? '#8b95a7' : DOT[st]};"></span>${logo(k, 30)}<div><div style="font-size:24px;font-weight:600;">${v}</div><div class="sub">${label}</div></div><span class="size">${gb}</span>`;
+  el.dataset.st = st;
+  $('vers').appendChild(el);
+}
+for (const [name, vs] of PROJ) {
+  const el = document.createElement('div'); el.className = 'row'; el.style.height = '76px';
+  const stack = [...new Set(vs.map((vi) => VERS[vi][0]))].map((k) => logo(k, 26)).join('');
+  el.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b95a7" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span style="font-size:23px;font-weight:500;">${name}</span><span style="margin-left:auto;display:flex;gap:10px;">${stack}</span>`;
+  $('projs').appendChild(el);
+}
+const LINKS = [];
+PROJ.forEach(([, vs], pi) => vs.forEach((vi) => LINKS.push({ vi, pi })));
+for (const l of LINKS) {
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const vy = V_TOP + 38 + l.vi * ROW, py = P_TOP + 38 + l.pi * ROW;
+  path.setAttribute('d', `M 920 ${vy} C 1050 ${vy}, 1050 ${py}, 1180 ${py}`);
+  path.setAttribute('fill', 'none'); path.setAttribute('stroke', DOT[VERS[l.vi][2]]); path.setAttribute('stroke-width', '3'); path.setAttribute('stroke-linecap', 'round');
+  $('links').appendChild(path);
+  l.el = path; l.len = 0;
+}
+
+// Cleanup rows (sum to 12.4 GB).
+const WINS = [
+  ['an', 'Pixel 6 · API 33 emulator', 'Stale · not opened in 8 months', '4.6 GB'],
+  ['gr', 'Gradle 7.5.1 caches', 'Unused · no project needs 7.5.1', '2.9 GB'],
+  ['an', 'Android NDK 23.1', 'Unused · NDK', '2.4 GB'],
+  ['fl', 'Flutter 3.22.3', 'Unused version', '1.1 GB'],
+  ['dn', '.NET SDK 6.0.428', 'Unused · out of support', '1.0 GB'],
+  ['jv', 'Java jdk-11', 'Unused', '412 MB'],
+];
+for (const [k, title, sub, gb] of WINS) {
+  const el = document.createElement('div'); el.className = 'row'; el.style.height = '84px';
+  el.innerHTML = `<span class="check"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#04121f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span>${logo(k, 32)}<div><div style="font-size:24px;font-weight:600;">${title}</div><div class="sub">${sub}</div></div><span class="size" style="font-size:22px;">${gb}</span>`;
+  $('wins').appendChild(el);
+}
+const DROPS = WINS.map(([k]) => {
+  const el = document.createElement('div'); el.className = 'abs';
+  el.style.cssText += 'width:84px;height:84px;border-radius:20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);display:grid;place-items:center;';
+  el.innerHTML = logo(k, 50);
+  $('drops').appendChild(el);
+  return el;
+});
+
+// ---------- The render function: one call paints the frame at time t ----------
+function render(t) {
+  set($('glowA'), { transform: tf(-200 + Math.sin(t * .35) * 220, -380 + Math.cos(t * .27) * 140, 1) });
+  set($('glowB'), { transform: tf(900 + Math.cos(t * .3) * 260, 200 + Math.sin(t * .22) * 160, 1) });
+  set($('grid'), { opacity: (prog(t, 15.0, 16.0) - prog(t, 41.6, 42.2)) * .9, transform: tf(0, -(t * 12) % 60) });
+
+  // ---- S1: "Quick question." then the headline, word by word ----
+  const typed = 'Quick question.';
+  const nChars = Math.floor(clamp((t - .38) / .75) * typed.length);
+  $('qText').textContent = typed.slice(0, nChars);
+  const qOut = ease.inExpo(prog(t, 1.25, 1.55));
+  set($('q'), { opacity: (1 - qOut) * (t < .1 ? t / .1 : 1), transform: tf(0, 500 - qOut * 60, 1 - qOut * .1) });
+  $('caret').style.opacity = Math.floor(t * 3.4) % 2 ? .2 : 1;
+  const burst = 4.25;
+  const hookOut = ease.inExpo(prog(t, burst - .1, burst + .2));
+  set($('hook'), { opacity: t > burst + .25 ? 0 : 1 - hookOut, transform: `scale(${1 + hookOut * .25})`, filter: hookOut > 0 ? `blur(${hookOut * 18}px)` : 'none' });
+  document.querySelectorAll('#hook .hw').forEach((w) => {
+    const c = at(w.dataset.cue) - .04;
+    const k = ease.outExpo(prog(t, c, c + .45));
+    set(w.firstElementChild, { opacity: k > 0 ? 1 : 0, transform: `translateY(${(1 - k) * 150}%) skewY(${(1 - k) * 7}deg)` });
+  });
+  // "hiding" wobbles as if ducking out of sight.
+  const hid = document.querySelector('#h2 .hw > span');
+  if (t > at('1.hiding') + .4) hid.style.transform = `translateY(${Math.sin((t - at('1.hiding')) * 5) * 4}px) skewX(${Math.sin((t - at('1.hiding')) * 3) * -4}deg)`;
+
+  // ---- Chips: peek out of the dark (hiding), burst on "Six", dim, fly into the logo ----
+  const toLogo = ease.inOutExpo(prog(t, 12.95, 13.75));
+  const kinDim = prog(t, 4.55, 5.0);
+  for (const c of CHIPS) {
+    const peek = ease.outCubic(prog(t, c.peek, c.peek + 1.2));
+    const b = ease.outExpo(prog(t, burst + c.i * .004, burst + .9 + c.i * .004));
+    if (peek <= 0 || t > 13.8) { c.el.style.opacity = 0; continue; }
+    // Hidden: far out at the edges, dim and soft, swaying. Burst: snaps into place, sharp.
+    const hx = W / 2 + (c.tx - W / 2) * 1.35, hy = H / 2 + (c.ty - H / 2) * 1.35;
+    let x = lerp(hx, c.tx, b) + Math.sin(t * .8 + c.ph) * c.drift * .4;
+    let y = lerp(hy, c.ty, b) + Math.cos(t * .6 + c.ph) * 10 + Math.max(0, t - burst) * 5;
+    let r = c.rot * (.4 + .6 * b) + c.spin * Math.max(0, t - burst) * .15;
+    let s = lerp(c.scale * .8, c.scale, b);
+    let o = lerp(.16 * peek, 1, b) * (1 - kinDim * .8);
+    let blur = lerp(10, 0, b) + kinDim * 6;
+    if (toLogo > 0) {
+      const bx = W / 2 - 330 + c.slot * 13 + c.bar * 26, by = H / 2 - 150 + c.bar * 52;
+      x = lerp(x, bx, toLogo); y = lerp(y, by, toLogo); r = lerp(r, 0, toLogo); s = lerp(s, .12, toLogo);
+      o = lerp(o, 0, prog(t, 13.4, 13.75)); blur = lerp(blur, 0, toLogo);
+    }
+    set(c.el, { opacity: o, transform: tf(x, y, s, r), filter: blur > .2 ? `blur(${blur}px)` : 'none' });
+  }
+
+  // ---- S2: the counts ----
+  const lines = [...$('kin').children];
+  const kOut = ease.inExpo(prog(t, 12.75, 13.1));
+  let shake = 0;
+  lines.forEach((el, i) => {
+    const c = at(el.dataset.cue);
+    const kIn = ease.outExpo(prog(t, c - .05, c + .45));
+    const nextEl = lines[i + 1];
+    const next = nextEl ? at(nextEl.dataset.cue) : 99;
+    const keepsMe = i === 4; // the Java line stays up for its punchline
+    const pushed = ease.inOutCubic(prog(t, next - .05, next + .4));
+    const baseY = i === 5 ? 610 : 440;
+    const y = baseY - pushed * (keepsMe ? 110 : 170) - kOut * 60;
+    const fade = keepsMe ? 0 : pushed * 1.6;
+    set(el, {
+      top: '0px', opacity: (kIn > 0 ? 1 : 0) * Math.max(0, 1 - fade) * (1 - kOut),
+      transform: tf(0, y, 1 - (keepsMe ? pushed * .08 : pushed * .18)),
+      filter: pushed > 0 && !keepsMe ? `blur(${pushed * 14}px)` : 'none',
+    });
+    set(el.firstElementChild.firstElementChild, { transform: `translateY(${(1 - kIn) * 115}%) skewY(${(1 - kIn) * 7}deg)` });
+    const k = prog(t, c, c + .25); if (k > 0 && k < 1 && i < 5) shake += Math.sin(k * 40) * (1 - k) * 7;
+  });
+  $('kin').style.transform = tf(shake, shake * .4);
+
+  // ---- S3 + S7: logo lockup ----
+  const asm = ease.outExpo(prog(t, 13.45, 14.2));
+  const logoOut = ease.inExpo(prog(t, 15.1, 15.45));
+  const END = 42.15;
+  const endIn = ease.outExpo(prog(t, END, END + .9));
+  const first = t < 15.5;
+  const logoVis = first ? asm * (1 - logoOut) : endIn;
+  const wordW = $('word').offsetWidth || 700;
+  const lx = (W - (250 + 50 + wordW)) / 2, ly = H / 2 - 120;
+  const widths = [150, 210, 250];
+  ['bar1', 'bar2', 'bar3'].forEach((id, i) => {
+    const grow = first ? ease.spring(prog(t, 13.4 + i * .08, 14.2 + i * .08)) : ease.spring(prog(t, END + i * .08, END + 1 + i * .08));
+    const breathe = t > END + 1 ? Math.sin((t - END - 1) * 2.2 + i * .9) * 14 : 0;
+    set($(id), { width: `${widths[i] * grow + breathe}px`, transform: tf(lx, ly + i * 52, 1), opacity: logoVis });
+  });
+  if ($('word').childElementCount === 0) for (const ch of 'Stackyard') { const s = document.createElement('span'); s.textContent = ch; s.style.display = 'inline-block'; $('word').appendChild(s); }
+  [...$('word').children].forEach((s, i) => {
+    const k1 = ease.outExpo(prog(t, at('3.stackyard') - .05 + i * .045, at('3.stackyard') + .65 + i * .045));
+    const k2 = ease.outExpo(prog(t, at('7.stackyard') + i * .045, at('7.stackyard') + .7 + i * .045));
+    const k = first ? k1 * (1 - logoOut) : k2;
+    set(s, { transform: `translateY(${(1 - k) * 70}px)`, opacity: k });
+  });
+  set($('word'), { transform: tf(lx + 300, ly - 26, 1 + logoOut * .06) });
+  const tA = ease.outCubic(prog(t, at('7.know') - .05, at('7.know') + .45));
+  const tB = ease.outCubic(prog(t, at('7.free') - .05, at('7.free') + .45));
+  set($('tag'), { transform: tf(0, ly + 210) });
+  set($('tagA'), { opacity: tA, display: 'inline-block', transform: `translateY(${(1 - tA) * 24}px)` });
+  set($('tagB'), { opacity: tB, display: 'inline-block', transform: `translateY(${(1 - tB) * 24}px)` });
+  const e2 = ease.outCubic(prog(t, 45.3, 45.9));
+  set($('end2'), { opacity: e2, transform: tf(0, ly + 320 + (1 - e2) * 16) });
+
+  // ---- S4a: product shot ----
+  const A0 = 15.4;
+  const appIn = ease.outExpo(prog(t, A0, A0 + 1.2));
+  const calm = ease.inOutCubic(prog(t, at('4.one') - .3, at('4.window') + .4));
+  const appOut = ease.inExpo(prog(t, 20.3, 20.7));
+  const dolly = prog(t, A0 + 1.2, 19.5);
+  const rx = (lerp(42, 6, appIn) - dolly * 2) * (1 - calm), ry = (lerp(-18, -5, appIn) + dolly * 5) * (1 - calm), ty = lerp(560, 30, appIn) * (1 - calm) + 10 * calm;
+  const sc = lerp(.8, .97, appIn) + dolly * .04 * (1 - calm) + appOut * .9;
+  set($('cam'), { opacity: t < A0 - .1 || t > 20.75 ? 0 : 1 - prog(t, 20.5, 20.72) });
+  set($('app'), { transform: `translate3d(${-50 * (1 - calm) + appOut * 260}px,${ty - appOut * 120}px,0) rotateX(${rx * (1 - appOut)}deg) rotateY(${ry * (1 - appOut)}deg) scale(${sc})` });
+  [...$('side').children].forEach((el, i) => {
+    const k = ease.outExpo(prog(t, A0 + .55 + i * .05, A0 + 1.15 + i * .05));
+    set(el, { opacity: k, transform: `translateX(${(1 - k) * -30}px)` });
+  });
+  const heroK = ease.outExpo(prog(t, A0 + 1.1, A0 + 2.6));
+  $('hero').textContent = fmtGB(19.7 * heroK);
+  let acc = 0; const barW = 1080;
+  [...$('bar').children].forEach((seg, i) => {
+    const gb = +seg.dataset.gb, w = Math.max(gb / TOTAL * barW, 6);
+    const k = ease.outExpo(prog(t, A0 + 1.5 + i * .09, A0 + 2.3 + i * .09));
+    set(seg, { left: `${acc}px`, width: `${Math.max(0, w * k - 3)}px` }); acc += w;
+  });
+  [...$('legend').children].forEach((el, i) => { set(el, { opacity: ease.outCubic(prog(t, A0 + 2.0 + i * .06, A0 + 2.4 + i * .06)) }); });
+  [...$('attn').children].forEach((el, i) => { const k = ease.outExpo(prog(t, A0 + 2.3 + i * .1, A0 + 2.9 + i * .1)); set(el, { opacity: k, transform: `translateY(${(1 - k) * 20}px)` }); });
+  const pills = [['c1', at('4.sdk'), 80, 150], ['c2', at('4.toolchain'), 1360, 400], ['c3', at('4.framework'), 120, 840]];
+  for (const [id, a, x, y] of pills) {
+    const k = ease.spring(prog(t, a - .05, a + .65));
+    const o = clamp(k * 1.5) * (1 - prog(t, 19.1, 19.45));
+    set($(id), { opacity: o, transform: tf(x, y + (1 - k) * 30 + Math.sin(t * 1.4 + x) * 5, .85 + .15 * k) });
+  }
+
+  // ---- S4b: roll call ----
+  const MORE = at('4.more') - .1;
+  const toWall = ease.inOutCubic(prog(t, MORE, MORE + .75));
+  const wallOut = ease.inExpo(prog(t, 30.0, 30.35));
+  const DOCK_Y = 840, DOCK_GAP = 120, DOCK_S = 72 / 230;
+  const COLS = 6, CW = 220, CH = 200, GX = (W - COLS * CW) / 2, GY = 190;
+  let active = -1;
+  ROLL.forEach(([, cue], i) => { if (t >= at(cue) - .05) active = i; });
+  ROLL_EL.forEach((r, i) => {
+    const gx = GX + (i % COLS) * CW + (CW - 120) / 2, gy = GY + Math.floor(i / COLS) * CH;
+    const wallS = 120 / 230;
+    let x, y, s, o, rot = 0;
+    if (i < ROLL.length) {
+      const c = at(ROLL[i][1]) - .05;
+      const nextC = i + 1 < ROLL.length ? at(ROLL[i + 1][1]) - .05 : MORE;
+      const kin = ease.spring(prog(t, c, c + .7));
+      const kDock = ease.inOutCubic(prog(t, nextC, nextC + .4));
+      // Big: logo left of centre. Dock: a row along the bottom.
+      const bigX = 520, bigY = 330;
+      const dx = W / 2 - (ROLL.length * DOCK_GAP) / 2 + i * DOCK_GAP + (DOCK_GAP - 72) / 2 - (230 - 72) / 2;
+      const dy = DOCK_Y - (230 - 72) / 2;
+      x = lerp(bigX, dx, kDock); y = lerp(bigY + (1 - kin) * 80, dy, kDock);
+      s = lerp(lerp(.4, 1, kin), DOCK_S, kDock); rot = (1 - kin) * -14 * (1 - kDock);
+      o = clamp(kin * 2) * (t < c ? 0 : 1);
+      // Then everyone moves into the wall.
+      x = lerp(x, gx - (230 - 120) / 2, toWall); y = lerp(y, gy - (230 - 120) / 2, toWall); s = lerp(s, wallS, toWall);
+    } else {
+      const j = i - ROLL.length;
+      const k = ease.spring(prog(t, MORE + .25 + j * .05, MORE + .95 + j * .05));
+      x = gx - (230 - 120) / 2; y = gy - (230 - 120) / 2 + (1 - k) * 60; s = wallS * lerp(.2, 1, k); o = clamp(k * 2);
+    }
+    const out = wallOut;
+    set(r.tile, { opacity: o * (1 - out) * (t > 30.4 ? 0 : 1), transform: tf(x, y - out * 40, s * (1 + out * .15), rot) });
+    const lk = ease.outCubic(prog(t, MORE + .5 + i * .03, MORE + .9 + i * .03));
+    set(r.label, { opacity: lk * (1 - out), transform: tf(gx + 60 - 100, gy + 132 + (1 - lk) * 10 - out * 40) });
+  });
+  // The name and its one-line description for the current tech.
+  if (active >= 0 && t < MORE + .2) {
+    const [k, cue, sub] = ROLL[active];
+    const c = at(cue) - .05;
+    const nextC = active + 1 < ROLL.length ? at(ROLL[active + 1][1]) - .05 : MORE;
+    if ($('rnText').textContent !== TECH[k][1]) $('rnText').textContent = TECH[k][1];
+    if (rollSub.textContent !== sub) rollSub.textContent = sub;
+    const kin = ease.outExpo(prog(t, c + .05, c + .5));
+    const kout = ease.inCubic(prog(t, nextC - .12, nextC + .05));
+    set($('rnText'), { transform: `translateY(${(1 - kin) * 115 + kout * -115}%)` });
+    set(rollName, { opacity: 1, transform: tf(820, 360) });
+    set(rollSub, { opacity: ease.outCubic(prog(t, c + .2, c + .55)) * (1 - kout), transform: tf(826, 540 + (1 - kin) * 14) });
+  } else { rollName.style.opacity = 0; rollSub.style.opacity = 0; }
+  const cap = ease.outCubic(prog(t, MORE + .9, MORE + 1.3));
+  set($('wallCap'), { opacity: cap * (1 - wallOut), transform: tf(0, GY + 3 * CH + 40 + (1 - cap) * 12) });
+
+  // ---- S5: graph ----
+  const G0 = 30.25;
+  const gIn = ease.outExpo(prog(t, G0, G0 + .9)), gOut = ease.inExpo(prog(t, 35.5, 35.85));
+  set($('graph'), { opacity: (t < G0 - .05 || t > 35.9) ? 0 : gIn * (1 - gOut), transform: tf(0, (1 - gIn) * 60 - gOut * 40, 1 + gOut * .06) });
+  const headK = ease.outExpo(prog(t, G0 + .1, G0 + .8));
+  set($('gHead'), { opacity: headK, transform: tf(120, 130 + (1 - headK) * 30) });
+  set($('vers'), { transform: tf(120, V_TOP + (1 - gIn) * 40) });
+  set($('projs'), { transform: tf(1180, P_TOP + (1 - ease.outExpo(prog(t, G0 + .3, G0 + 1.2))) * 60), opacity: ease.outCubic(prog(t, G0 + .3, G0 + .9)) });
+  const pulseAt = at('5.nothing') - .1, liftAt = at('5.all') - .15;
+  [...$('vers').children].forEach((el, i) => {
+    const k = ease.outExpo(prog(t, G0 + .2 + i * .07, G0 + .8 + i * .07));
+    const st = el.dataset.st;
+    const pulse = st === 'unused' ? prog(t, pulseAt, pulseAt + .3) * (.5 + .5 * Math.sin((t - pulseAt) * 9)) : 0;
+    const lift = st === 'unused' ? ease.outCubic(prog(t, liftAt, liftAt + .5)) : 0;
+    set(el, { opacity: k, transform: `translateX(${(1 - k) * -40 + lift * 24}px)`, background: pulse > 0 || lift > 0 ? `rgba(255,181,71,${.10 * Math.max(pulse, lift)})` : 'transparent' });
+    const dot = el.firstElementChild;
+    if (st === 'unused') { dot.style.boxShadow = pulse > 0 ? `0 0 0 ${6 * pulse}px rgba(255,181,71,.25)` : 'none'; dot.style.borderColor = lift > 0 ? '#ffb547' : '#8b95a7'; }
+  });
+  const linkAt = at('5.project') - .1;
+  LINKS.forEach((l, i) => {
+    if (!l.len) l.len = l.el.getTotalLength();
+    const k = ease.inOutCubic(prog(t, linkAt + i * .16, linkAt + .6 + i * .16));
+    set(l.el, { strokeDasharray: `${l.len}`, strokeDashoffset: `${l.len * (1 - k)}`, opacity: k > 0 ? .9 : 0 });
+  });
+  const up = ease.spring(prog(t, liftAt + .1, liftAt + .8));
+  set($('unusedPill'), { opacity: clamp(up * 1.5), transform: tf(1180, 840 + (1 - up) * 30, .85 + .15 * up) });
+
+  // ---- S6: cleanup ----
+  const C0 = 35.75;
+  const cIn = ease.outExpo(prog(t, C0, C0 + .7)), cOut = ease.inExpo(prog(t, 41.55, 41.95));
+  set($('clean'), { opacity: (t < C0 - .05 || t > 42.0) ? 0 : cIn * (1 - cOut), transform: tf(0, (1 - cIn) * 70, 1 - cOut * .04) });
+  const ccA = ease.outExpo(prog(t, C0 + .05, C0 + .6)), ccB = ease.outExpo(prog(t, at('6.gigabytes') - .05, at('6.gigabytes') + .5));
+  const headOut = ease.inCubic(prog(t, 38.1, 38.4));
+  set($('cHead'), { opacity: 1 - headOut, transform: tf(120, 96 - headOut * 30) });
+  set($('cA'), { opacity: ccA, display: 'inline-block', transform: `translateY(${(1 - ccA) * 30}px)` });
+  set($('cB'), { opacity: ccB, display: 'inline-block', transform: `translateY(${(1 - ccB) * 30}px)` });
+  const clickAt = at('6.click');
+  const checkAt = (i) => C0 + .15 + i * .05;
+  let winsH = 0;
+  const rows = [...$('wins').children];
+  rows.forEach((el, i) => {
+    const appear = ease.outExpo(prog(t, C0 + i * .05, C0 + .55 + i * .05));
+    const fold = ease.inOutCubic(prog(t, clickAt + .25 + i * .1, clickAt + .6 + i * .1));
+    const checked = t >= checkAt(i);
+    const box = el.firstElementChild;
+    const pop = ease.outBack(prog(t, checkAt(i), checkAt(i) + .25));
+    set(box, { background: checked ? 'var(--accent)' : 'transparent', borderColor: checked ? 'var(--accent)' : 'rgba(255,255,255,.35)', transform: `scale(${checked ? .8 + .2 * pop : 1})` });
+    box.firstElementChild.style.opacity = checked ? 1 : 0;
+    set(el, { opacity: appear * (1 - fold), height: `${84 * (1 - fold)}px`, transform: `translateX(${(1 - appear) * -40 + fold * 120}px)`, borderTopColor: `rgba(255,255,255,${.08 * (1 - fold)})` });
+    winsH += 84 * (1 - fold) + (i ? 1 : 0);
+  });
+  $('wins').style.opacity = 1 - prog(t, clickAt + .95, clickAt + 1.2);
+  const btnY = 280 + winsH + 40;
+  const press = prog(t, clickAt - .08, clickAt + .04) - prog(t, clickAt + .04, clickAt + .2);
+  const btnK = ease.outExpo(prog(t, C0 + .3, C0 + .8));
+  set($('btn'), { opacity: btnK * (1 - ease.inCubic(prog(t, clickAt + 1.0, clickAt + 1.3))), transform: tf(120, btnY + (1 - btnK) * 20, 1 - press * .05) });
+  const freedK = ease.outExpo(prog(t, clickAt + .3, at('6.straight') - .4));
+  $('freedNum').textContent = (12.4 * freedK).toFixed(1);
+  const centre = ease.inOutCubic(prog(t, clickAt + .7, clickAt + 1.4));
+  const toTop = ease.inOutCubic(prog(t, 38.15, 38.75));
+  set($('freed'), {
+    opacity: ease.outCubic(prog(t, C0 + .3, C0 + .8)),
+    transform: tf(lerp(lerp(1220, 700, centre), 1000, toTop), lerp(lerp(330, 300, centre), 330, toTop), (1 + centre * .18) * (1 - toTop * .4)),
+  });
+  // The Recycle Bin rises; the items drop in, one after another.
+  const binIn = ease.spring(prog(t, at('6.straight') - .1, at('6.straight') + .6));
+  const binX = 640, binY = 320;
+  let wob = 0;
+  DROPS.forEach((el, i) => {
+    const d0 = at('6.recycle') - .55 + i * .14, d1 = d0 + .5;
+    const k = prog(t, d0, d1);
+    const startX = binX + 130 - 42 + (i - 2.5) * 150, startY = 120;
+    const x = lerp(startX, binX + 130 - 42, ease.inOutCubic(k));
+    const y = lerp(startY, binY + 120, k * k);
+    set(el, { opacity: k > 0 && k < 1 ? clamp(k * 5) * clamp((1 - k) * 4) : 0, transform: tf(x, y, 1 - k * .35, (1 - k) * (i % 2 ? 18 : -18)) });
+    const land = prog(t, d1, d1 + .25); if (land > 0 && land < 1) wob += Math.sin(land * 20) * (1 - land) * 4;
+  });
+  const lidOpen = ease.outCubic(prog(t, at('6.recycle') - .7, at('6.recycle') - .4)) * (1 - ease.inOutCubic(prog(t, at('6.recycle') + .45, at('6.recycle') + .75)));
+  set($('binWrap'), { opacity: clamp(binIn * 1.4), transform: tf(binX, binY + (1 - binIn) * 120, .9 + .1 * binIn, wob) });
+  set($('binLid'), { transform: `rotate(${-lidOpen * 28}deg)` });
+  const safe = ease.outCubic(prog(t, at('6.so') - .1, at('6.so') + .35));
+  set($('bin'), { opacity: safe, transform: tf(0, 690 + (1 - safe) * 14) });
+  // Cursor: already near the button, clicks on "click".
+  const path = [[C0 + .2, 1500, 980], [clickAt - .1, 300, btnY + 38], [clickAt + .6, 340, btnY + 60], [clickAt + 1.0, 700, 1150]];
+  let cx = 1500, cy = 980;
+  for (let i = 0; i < path.length - 1; i++) {
+    const [t0, x0, y0] = path[i], [t1, x1, y1] = path[i + 1];
+    if (t >= t0 && t <= t1) { const k = ease.inOutCubic(prog(t, t0, t1)); cx = lerp(x0, x1, k); cy = lerp(y0, y1, k); }
+    else if (t > t1) { cx = x1; cy = y1; }
+  }
+  set($('cursor'), { transform: tf(cx, cy, 1 - press * .12), opacity: prog(t, C0 + .2, C0 + .4) * (1 - prog(t, clickAt + .7, clickAt + .9)) });
+  const rip = prog(t, clickAt - .02, clickAt + .45);
+  set($('ripple'), { opacity: rip > 0 && rip < 1 ? 1 - rip : 0, transform: tf(300 - 40, btnY + 38 - 40, .3 + rip * 1.3) });
+
+  // ---- Flashes on the big cuts ----
+  let fl = 0;
+  for (const a of [burst, 13.45, A0, 20.6, MORE, G0, C0, END]) { const k = prog(t, a - .05, a + .35); if (k > 0 && k < 1) fl = Math.max(fl, (1 - k) * .5); }
+  $('flash').style.opacity = fl;
+  $('stage').style.opacity = 1 - prog(t, DUR - .5, DUR);
+}
+
+window.render = render;
+window.DUR = DUR;
+window.CUES = WORDS;
+window.ready = document.fonts.ready.then(() => Promise.all([...document.images].map((i) => i.decode().catch(() => {})))).then(() => { render(0); return true; });
+if (location.search.includes('play')) {
+  const t0 = performance.now();
+  const tick = () => { render(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+} else { render(+(new URLSearchParams(location.search).get('t') || 0)); }
+</script>
+</body>
+</html>
