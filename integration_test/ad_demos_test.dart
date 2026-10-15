@@ -553,7 +553,9 @@ void main() {
       shell.open('settings');
       await settle(tester, 2000);
       mark('settings_scroll');
-      unawaited(Scrollable.ensureVisible(tester.element(find.text('Move your setup to another computer')), alignment: 0.82, duration: const Duration(milliseconds: 1400), curve: Curves.easeInOut));
+      // The page's own scroller (the sidebar has one too). Stop short of the last rows: the About row shows the real data folder.
+      final page = tester.state<ScrollableState>(find.descendant(of: find.byType(ScaffoldPage), matching: find.byType(Scrollable)).first);
+      unawaited(page.position.animateTo((page.position.maxScrollExtent - 170).clamp(0, double.infinity), duration: const Duration(milliseconds: 1400), curve: Curves.easeInOut));
       await settle(tester, 3500);
       mark('end');
       print('AD DONE');
