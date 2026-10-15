@@ -1,0 +1,180 @@
+# Builds the Windows installer and the macOS app.
+#   Release: push a tag like v1.0.0. A draft GitHub Release gets both files.
+#   Try it:  Actions → Release → Run workflow (files appear under the run's artifacts).
+# Signing switches on by itself once its secrets exist (see docs/RELEASING.md);
+# without them, unsigned builds are made.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version number (x.y.z)
+        required: true
+        default: 0.0.1
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      SIGN: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version and Flutter version
+        shell: pwsh
+        run: |
+          $v = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}'.TrimStart('v') } else { '${{ inputs.version }}' }
+          "VERSION=$v" >> $env:GITHUB_ENV
+          "FLUTTER=$((Get-Content .fvmrc | ConvertFrom-Json).flutter)" >> $env:GITHUB_ENV
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build windows --release --build-name ${{ env.VERSION }} --dart-define=APP_VERSION=${{ env.VERSION }}
+
+      # Sign stackyard.exe and the plugin DLLs before they go into the installer.
+      - name: Upload app for signing
+        if: env.SIGN == 'true'
+        id: app
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-unsigned
+          path: build/windows/x64/runner/Release
+      - name: Sign app
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: stackyard
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: app
+          github-artifact-id: ${{ steps.app.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: build/windows/x64/runner/Release
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc /DAppVersion=$env:VERSION installer\stackyard.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload installer for signing
+        if: env.SIGN == 'true'
+        id: setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-unsigned
+          path: dist/Stackyard-Setup-${{ env.VERSION }}.exe
+      - name: Sign installer
+        if: env.SIGN == 'true'
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: stackyard
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.setup.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Stackyard-Setup-${{ env.VERSION }}
+          path: dist/Stackyard-Setup-${{ env.VERSION }}.exe
+      - name: Attach to draft release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: dist/Stackyard-Setup-${{ env.VERSION }}.exe
+
+  macos:
+    runs-on: macos-latest
+    env:
+      SIGN: ${{ secrets.MACOS_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version and Flutter version
+        run: |
+          if [ "${{ github.ref_type }}" = tag ]; then v="${{ github.ref_name }}"; v="${v#v}"; else v="${{ inputs.version }}"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "FLUTTER=$(python3 -c 'import json;print(json.load(open(".fvmrc"))["flutter"])')" >> "$GITHUB_ENV"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build macos --release --build-name ${{ env.VERSION }} --dart-define=APP_VERSION=${{ env.VERSION }}
+
+      - name: Sign with Developer ID
+        if: env.SIGN == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KC_PW="$(uuidgen)"
+          security create-keychain -p "$KC_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PW" "$KEYCHAIN"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KC_PW" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | grep 'Developer ID Application' | head -1 | awk -F'"' '{print $2}')"
+          echo "IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          codesign --force --deep --options runtime --timestamp \
+            --entitlements macos/Runner/Release.entitlements \
+            --sign "$IDENTITY" build/macos/Build/Products/Release/Stackyard.app
+          codesign --verify --deep --strict --verbose=2 build/macos/Build/Products/Release/Stackyard.app
+
+      - name: Make DMG
+        run: |
+          mkdir -p dist dmg
+          cp -R build/macos/Build/Products/Release/Stackyard.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname Stackyard -srcfolder dmg -ov -format UDZO "dist/Stackyard-$VERSION.dmg"
+
+      - name: Notarize
+        if: env.SIGN == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          codesign --force --timestamp --sign "$IDENTITY" "dist/Stackyard-$VERSION.dmg"
+          xcrun notarytool submit "dist/Stackyard-$VERSION.dmg" \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple "dist/Stackyard-$VERSION.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Stackyard-${{ env.VERSION }}-macOS
+          path: dist/Stackyard-${{ env.VERSION }}.dmg
+      - name: Attach to draft release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: dist/Stackyard-${{ env.VERSION }}.dmg

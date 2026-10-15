@@ -211,7 +211,7 @@ class SettingsPage extends StatelessWidget {
         row(
           13,
           icon: WindowsIcons.info,
-          title: 'Stackyard 0.1.0',
+          title: 'Stackyard ${const String.fromEnvironment('APP_VERSION', defaultValue: 'dev')}',
           subtitle: 'Open source. Your data stays on this ${Sys.isWindows ? 'PC' : 'Mac'}: no accounts, no telemetry.',
           trailing: Muted('Data: ${Settings.dataDir.path}'),
         ),

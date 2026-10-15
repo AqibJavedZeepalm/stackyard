@@ -32,6 +32,15 @@ Version managers like FVM, nvm, pyenv and SDKMAN are great at installing version
 
 Installs use each tech's own manager (FVM, nvm / fnm / Volta, `sdkmanager`). Tools without one are installed with `winget` on Windows and Homebrew on macOS.
 
+## Download
+
+Get the latest version from [Releases](https://github.com/AqibJavedZeepalm/stackyard/releases):
+
+- **Windows 10 / 11:** `Stackyard-Setup-<version>.exe`. It installs for your user only, with no administrator prompt.
+- **macOS 12 or later:** `Stackyard-<version>.dmg`. Open it and drag Stackyard to Applications.
+
+How releases are built and signed: [docs/RELEASING.md](docs/RELEASING.md).
+
 ## Run it
 
 Needs Flutter 3.47 or later. The project pins its Flutter version in `.fvmrc`, so [FVM](https://fvm.app) is the easiest way to get the right one.
