@@ -34,14 +34,30 @@ Installs use each tech's own manager (FVM, nvm / fnm / Volta, `sdkmanager`). Too
 
 ## Run it
 
-Needs Flutter 3.47 or later.
+Needs Flutter 3.47 or later. The project pins its Flutter version in `.fvmrc`, so [FVM](https://fvm.app) is the easiest way to get the right one.
 
 - **Windows:** Visual Studio 2022 with the "Desktop development with C++" workload.
-- **macOS:** Xcode. The app runs outside the App Sandbox (see `macos/Runner/*.entitlements`), like other developer tools: it reads SDK folders across your home folder and runs tools such as `fvm`, `brew` and `sdkmanager`.
+- **macOS:** Xcode (open it once to accept the license), plus CocoaPods if Flutter asks for it (`brew install cocoapods`). The app runs outside the App Sandbox (see `macos/Runner/*.entitlements`), like other developer tools: it reads SDK folders across your home folder and runs tools such as `fvm`, `brew` and `sdkmanager`.
+
+### macOS
 
 ```bash
+brew tap leoafarias/fvm && brew install fvm
+git clone https://github.com/AqibJavedZeepalm/stackyard.git
+cd stackyard
 fvm install
-fvm flutter run -d windows   # or -d macos
+fvm flutter config --enable-macos-desktop
+fvm flutter run -d macos
+```
+
+### Windows
+
+```bash
+dart pub global activate fvm   # or: choco install fvm
+git clone https://github.com/AqibJavedZeepalm/stackyard.git
+cd stackyard
+fvm install
+fvm flutter run -d windows
 ```
 
 If the project sits in a very long path on Windows, MSBuild fails with `FTK1011`. `tool/dev.ps1` mirrors the project to a short path and runs Flutter there:
