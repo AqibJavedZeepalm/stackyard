@@ -147,11 +147,16 @@ void main() {
     expect(text, contains('export JAVA_HOME="/u/sdks/java/21"'));
     expect(text, isNot(contains('java/17')));
 
-    // Apps started from the Dock: set now (launchctl) and at every login (a LaunchAgent).
+    // macOS, apps started from the Dock: set now (launchctl) and at every login (a LaunchAgent).
+    final mac = Platform.isMacOS;
     final agent = File(p.join(home.path, 'Library', 'LaunchAgents', 'dev.stackyard.env.plist'));
-    expect(agent.readAsStringSync(), contains('launchctl setenv JAVA_HOME "/u/sdks/java/21"'));
-    expect(agent.readAsStringSync(), isNot(contains('PATH')));
-    expect(launchd['JAVA_HOME'], '/u/sdks/java/21');
+    if (mac) {
+      expect(agent.readAsStringSync(), contains('launchctl setenv JAVA_HOME "/u/sdks/java/21"'));
+      expect(agent.readAsStringSync(), isNot(contains('PATH')));
+      expect(launchd['JAVA_HOME'], '/u/sdks/java/21');
+    } else {
+      expect(agent.existsSync(), isFalse);
+    }
 
     await EnvWriter.applyUnix(
       const [EnvChange.dropPathUnder('/u/sdks/java/21'), EnvChange.removeIfUnder('JAVA_HOME', '/u/sdks/java/21')],
@@ -163,6 +168,6 @@ void main() {
     expect(text, isNot(contains('stackyard')));
     expect(text, contains('export EDITOR=vim'));
     expect(agent.existsSync(), isFalse, reason: 'no variables left to set at login');
-    expect(launchd.containsKey('JAVA_HOME'), isFalse);
+    expect(launchd.containsKey('JAVA_HOME'), isFalse, reason: mac ? 'cleared from launchd' : 'launchd is macOS only');
   });
 }
