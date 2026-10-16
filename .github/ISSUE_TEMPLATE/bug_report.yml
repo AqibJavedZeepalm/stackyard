@@ -1,0 +1,49 @@
+name: Bug report
+description: Something went wrong or Stackyard shows something that isn't true. (Settings → Report a problem fills this in for you.)
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What were you doing, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Flutter
+        2. Remove 3.22.3
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: Stackyard version
+      description: Settings → About.
+      placeholder: "1.0.3"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple silicon)
+        - macOS (Intel)
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Your setup
+      description: Anything that might matter, like how the tool is installed (FVM, nvm-windows, Homebrew, Scoop, SDKMAN…).
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: For a failed job, its "Report a problem" button in Activity copies the whole log; paste it here. Check it for anything private before you submit.
+      render: shell

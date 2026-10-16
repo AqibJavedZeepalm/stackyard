@@ -1,0 +1,16 @@
+name: Feature idea
+description: Something Stackyard could do better or doesn't do yet.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What's hard or annoying today? A real example helps most.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like
+      description: How you'd want Stackyard to handle it. Remember it never edits your projects and shows every change before it runs.

@@ -1,0 +1,38 @@
+name: Support a new tech
+description: Ask Stackyard to detect an SDK, toolchain or framework it doesn't know yet (Go, Rust, Ruby…).
+labels: [new tech]
+body:
+  - type: input
+    id: tech
+    attributes:
+      label: Tech
+      placeholder: Go
+    validations:
+      required: true
+  - type: textarea
+    id: installed
+    attributes:
+      label: How it's installed
+      description: Version managers and installers people use, and where they put versions on Windows and macOS.
+      placeholder: |
+        goenv: ~/.goenv/versions/<version>
+        Official installer: C:\Program Files\Go, /usr/local/go
+    validations:
+      required: true
+  - type: textarea
+    id: pinned
+    attributes:
+      label: How a project says which version it needs
+      description: The files and fields Stackyard should read.
+      placeholder: go.mod `go` and `toolchain` lines, .go-version
+  - type: textarea
+    id: why
+    attributes:
+      label: What you'd want to see or clean up
+      description: Unused versions, caches that grow, broken environment variables…
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Helping out
+      options:
+        - label: I'd like to write the adapter myself (see "Adding a tech" in the README)

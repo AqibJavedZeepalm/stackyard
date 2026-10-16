@@ -1,0 +1,6 @@
+# Blank issues stay on: the app's "Report a problem" opens /issues/new with the details filled in.
+blank_issues_enabled: true
+contact_links:
+  - name: Security problem
+    url: https://github.com/AqibJavedZeepalm/stackyard/security/advisories/new
+    about: Something that could delete the wrong files or run something unexpected. Please report it privately.

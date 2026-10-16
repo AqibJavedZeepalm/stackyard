@@ -58,7 +58,9 @@ By contributing, you agree that your contribution is released under the project'
 
 ## Security
 
-If you find a way Stackyard could delete the wrong files, run something unexpected or download something unchecked, please don't open a public issue. Use the repository's **Security → Report a vulnerability** form, or [get in touch privately](https://aqibjaved.dev/contact/), so it can be fixed before it's widely known.
+If you find a way Stackyard could delete the wrong files, run something unexpected or download something unchecked, please don't open a public issue. Report it privately as described in [SECURITY.md](SECURITY.md), so it can be fixed before it's widely known.
+
+Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Support the project
 

@@ -1,13 +1,43 @@
-# Stackyard
+<p align="center">
+  <img src="marketing/app-icon.png" width="96" height="96" alt="Stackyard icon">
+</p>
 
-[![CI](https://github.com/AqibJavedZeepalm/stackyard/actions/workflows/ci.yml/badge.svg)](https://github.com/AqibJavedZeepalm/stackyard/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-555)](#download)
-[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://aqibjaved.dev/coffee)
+<h1 align="center">Stackyard</h1>
 
-A free, open-source app for Windows and macOS that shows every SDK, toolchain and framework version on your computer, which projects use each one, and what's safe to remove. Then it fixes what's wrong with one click.
+<p align="center">
+  <b>See every SDK and toolchain on your machine, which projects use each version, and what's safe to remove.</b><br>
+  Free and open source, for Windows and macOS.
+</p>
+
+<p align="center">
+  <a href="https://github.com/AqibJavedZeepalm/stackyard/releases/latest"><img src="https://img.shields.io/badge/Download-Windows%20(.exe)-0078D4?style=for-the-badge" alt="Download for Windows"></a>
+  <a href="https://github.com/AqibJavedZeepalm/stackyard/releases/latest"><img src="https://img.shields.io/badge/Download-macOS%20(.dmg)-111111?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/AqibJavedZeepalm/stackyard/releases/latest"><img src="https://img.shields.io/github/v/release/AqibJavedZeepalm/stackyard?label=latest" alt="Latest release"></a>
+  <a href="https://github.com/AqibJavedZeepalm/stackyard/actions/workflows/ci.yml"><img src="https://github.com/AqibJavedZeepalm/stackyard/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="#download"><img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS-555" alt="Platforms: Windows and macOS"></a>
+  <a href="https://aqibjaved.dev/coffee"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/hero.webp" alt="Stackyard's Overview: 14.1 GB you can free, disk use per tech, a project that needs a missing Flutter version, and unused SDKs to clean up" width="860">
+</p>
+
+<p align="center">
+  <b>Works with</b> Flutter (FVM) · Node.js (nvm, fnm, Volta) · Android SDK and emulators · Xcode simulators and runtimes · Gradle · Java · Python · .NET<br>
+  and spots React, React Native, Expo, Next.js, Vue, Angular, Svelte and more in your projects.
+</p>
+
+## Why
 
 Version managers like FVM, nvm, pyenv and SDKMAN are great at installing versions. None of them tells you that you have six Flutter SDKs, three Android NDKs and a 13 GB emulator you haven't started in a year. Stackyard does.
+
+It shows every SDK, toolchain and framework version on your computer, which projects use each one, and what's safe to remove. Then it fixes what's wrong with one click, and nothing is deleted without you seeing it first.
+
+## Features
 
 - **Set up in a minute.** On first launch Stackyard finds the folders where your projects live, shows how many projects each holds, and lets you add more.
 - **One window for every tech.** A sidebar entry appears only for techs found on your machine.
@@ -24,6 +54,21 @@ Version managers like FVM, nvm, pyenv and SDKMAN are great at installing version
 - **Move your setup.** Export your toolchain versions to a file and import it on another computer to install what's missing.
 - **Never edits your projects.** It doesn't change a project's pinned versions, because that can break builds.
 - **Native feel.** Windows 11 Fluent design with Mica and your accent color; on macOS, the glass sidebar and motion of a Mac app. A Glass slider sets how much of your desktop shows through.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/flutter.webp" alt="Flutter page: each installed version, its size and which projects use it"><br><sub>Every version, its size and the projects that use it</sub></td>
+    <td width="50%"><img src="docs/screenshots/remove.webp" alt="Remove dialog showing the folder that moves to the Trash"><br><sub>You see exactly what happens before anything runs</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/market.webp" alt="Get tools: Java versions listed from the publisher's release feed"><br><sub>Install SDKs and CLIs straight from the publisher</sub></td>
+    <td width="50%"><img src="docs/screenshots/simulators.webp" alt="iOS simulators with size and last start, with Start, Erase and Delete"><br><sub>Simulators and emulators with their size and last start</sub></td>
+  </tr>
+</table>
+
+Screenshots are from macOS with demo data. On Windows the same pages use Windows 11's Fluent design and Mica.
 
 ## What it detects
 
