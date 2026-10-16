@@ -90,7 +90,7 @@ Installs use each tech's own manager (FVM, nvm / fnm / Volta, `sdkmanager`). Too
 
 Get the latest version from [Releases](https://github.com/AqibJavedZeepalm/stackyard/releases):
 
-- **Windows 10 / 11:** `Stackyard-Setup-<version>.exe`. It installs for your user only, with no administrator prompt.
+- **Windows 10 / 11:** `Stackyard-Setup-<version>.exe`. It installs for your user only, with no administrator prompt. The installer isn't code-signed yet, so SmartScreen may warn the first time: choose **More info → Run anyway**.
 - **macOS 12 or later:** `Stackyard-<version>.dmg`. Open it and drag Stackyard to Applications.
 
 How releases are built and signed: [docs/RELEASING.md](docs/RELEASING.md).
@@ -175,12 +175,12 @@ lib/
 
 ## Code signing policy
 
-Windows releases: free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). macOS releases are signed with the maintainer's Apple Developer ID and notarized by Apple.
+Windows releases aren't code-signed yet. Stackyard has applied for free open-source signing from [SignPath Foundation](https://signpath.org); once approved, Windows releases will be signed through [SignPath.io](https://signpath.io) under this policy. macOS releases are signed with the maintainer's Apple Developer ID and notarized by Apple.
 
 - Committers and reviewers: [members of this repository](https://github.com/AqibJavedZeepalm/stackyard/graphs/contributors)
 - Approvers: the repository owner, [Aqib Javed](https://github.com/AqibJavedZeepalm)
 
-The Windows installer is built from this repository's source and signed by GitHub Actions ([release.yml](.github/workflows/release.yml)). The macOS DMG is built from the same tagged commit with [tool/release-mac.sh](tool/release-mac.sh), signed, and notarized by Apple, so macOS checks it before it opens.
+The Windows installer is built from this repository's source by GitHub Actions ([release.yml](.github/workflows/release.yml)), which will also sign it once signing is approved. The macOS DMG is built from the same tagged commit with [tool/release-mac.sh](tool/release-mac.sh), signed, and notarized by Apple, so macOS checks it before it opens.
 
 ## Privacy
 
