@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/hero.webp" alt="Stackyard's Overview: 14.1 GB you can free, disk use per tech, a project that needs a missing Flutter version, and unused SDKs to clean up" width="860">
+  <img src="docs/screenshots/demo.gif" alt="Stackyard links each SDK version to the projects that use it, then frees 12.4 GB of unused ones in one click" width="720">
 </p>
 
 <p align="center">
@@ -57,6 +57,10 @@ It shows every SDK, toolchain and framework version on your computer, which proj
 
 ## Screenshots
 
+<p align="center">
+  <img src="docs/screenshots/hero.webp" alt="Stackyard's Overview: 14.1 GB you can free, disk use per tech, a project that needs a missing Flutter version, and unused SDKs to clean up" width="860">
+</p>
+
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/flutter.webp" alt="Flutter page: each installed version, its size and which projects use it"><br><sub>Every version, its size and the projects that use it</sub></td>
@@ -68,7 +72,7 @@ It shows every SDK, toolchain and framework version on your computer, which proj
   </tr>
 </table>
 
-Screenshots are from macOS with demo data. On Windows the same pages use Windows 11's Fluent design and Mica.
+Screenshots are from macOS with demo data; the animation at the top is from the Stackyard film. On Windows the same pages use Windows 11's Fluent design and Mica.
 
 ## What it detects
 
