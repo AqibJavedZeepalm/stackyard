@@ -16,6 +16,8 @@ const watchedPackages = [
   'vue',
   'nuxt',
   '@angular/core',
+  '@nestjs/core',
+  '@ionic/core',
   'svelte',
   'astro',
   'electron',

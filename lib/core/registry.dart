@@ -32,6 +32,8 @@ List<TechAdapter> buildRegistry() => [
   FrameworkTech(package: 'vue', name: 'Vue', color: const Color(0xFF42B883), monogram: 'V', logo: 'assets/tech/vue.svg'),
   FrameworkTech(package: 'nuxt', name: 'Nuxt', color: const Color(0xFF00DC82), monogram: 'Nu', logo: 'assets/tech/nuxt.svg', logoTint: LogoTint.brand),
   FrameworkTech(package: '@angular/core', name: 'Angular', color: const Color(0xFFDD0031), monogram: 'Ng', logo: 'assets/tech/angular.svg'),
+  FrameworkTech(package: '@nestjs/core', name: 'NestJS', color: const Color(0xFFDF234F), monogram: 'Ne', logo: 'assets/tech/nestjs.svg'),
+  FrameworkTech(package: '@ionic/core', name: 'Ionic', color: const Color(0xFF4E8EF7), monogram: 'Io', logo: 'assets/tech/ionic.svg'),
   FrameworkTech(package: 'svelte', name: 'Svelte', color: const Color(0xFFFF3E00), monogram: 'S', logo: 'assets/tech/svelte.svg'),
   FrameworkTech(package: 'astro', name: 'Astro', color: const Color(0xFFBC52EE), monogram: 'As', logo: 'assets/tech/astro.svg', logoTint: LogoTint.foreground),
   FrameworkTech(package: 'electron', name: 'Electron', color: const Color(0xFF47848F), monogram: 'El', logo: 'assets/tech/electron.svg'),
