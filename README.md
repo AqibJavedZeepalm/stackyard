@@ -99,6 +99,30 @@ Get the latest version from [Releases](https://github.com/AqibJavedZeepalm/stack
 
 How releases are built and signed: [docs/RELEASING.md](docs/RELEASING.md).
 
+## More Mac apps from me
+
+Small menu bar apps for things I kept fixing by hand while building Stackyard.
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://aqibjaved.dev/apps/notchet/?ref=stackyard-readme"><img src="https://aqibjaved.dev/assets/nt-icon-glow.webp" width="64" height="64" alt="Notchet icon"><br><b>Notchet</b></a><br>
+      Clipboard history that drops out of the MacBook notch with Option Command V. Text, images, links and files.<br>
+      <sub>7 days free, then $4.99 once</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://aqibjaved.dev/apps/displayshift/?ref=stackyard-readme"><img src="https://aqibjaved.dev/assets/ds-icon-puzzle.webp" width="64" height="64" alt="DisplayShift icon"><br><b>DisplayShift</b></a><br>
+      Plug in a monitor and choose which windows move over. Puts them back after sleep and tiles apps.<br>
+      <sub>7 days free, then $6.99 once</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://aqibjaved.dev/apps/scrollwise/?ref=stackyard-readme"><img src="https://aqibjaved.dev/assets/sw-icon-owl.webp" width="64" height="64" alt="Scrollwise icon"><br><b>Scrollwise</b></a><br>
+      Natural scrolling on the trackpad and Magic Mouse, classic on a wheel mouse, at the same time.<br>
+      <sub>Free, optional Pro $2.99</sub>
+    </td>
+  </tr>
+</table>
+
 ## Run it
 
 Needs Flutter 3.47 or later. The project pins its Flutter version in `.fvmrc`, so [FVM](https://fvm.app) is the easiest way to get the right one.
