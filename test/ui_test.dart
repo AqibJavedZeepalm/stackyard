@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:stackyard/core/app_update.dart';
 import 'package:stackyard/core/autostart.dart';
 import 'package:stackyard/core/market/catalog.dart';
 import 'package:stackyard/core/market/installed.dart';
@@ -225,6 +226,25 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await settle(tester);
     expect(state.jobs.jobs, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a newer Stackyard shows on the Overview and in Settings with a download button', (tester) async {
+    tester.view.physicalSize = const Size(1280, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    AutoStart.testValue = false;
+    final state = fakeState()..appUpdate = AppRelease(version: '1.2.0', download: Uri.parse('https://example.test/Stackyard.dmg'));
+    await tester.pumpWidget(app(state));
+    await settle(tester);
+    expect(find.text('Stackyard 1.2.0 is available'), findsOneWidget);
+    expect(find.text('Download'), findsOneWidget);
+
+    await tester.tap(find.text('Settings').first);
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('Download 1.2.0'), 200, scrollable: find.byType(Scrollable).last);
+    expect(find.text('Download 1.2.0'), findsOneWidget);
+    await settle(tester);
     expect(tester.takeException(), isNull);
   });
 }

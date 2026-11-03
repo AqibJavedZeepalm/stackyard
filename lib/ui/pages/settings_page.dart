@@ -1,7 +1,9 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/app_update.dart';
 import '../../core/autostart.dart';
 import '../../core/sys.dart';
 import '../../state/app_state.dart';
@@ -18,6 +20,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<Settings>();
     final state = context.read<AppState>();
+    final update = context.select<AppState, AppRelease?>((s) => s.appUpdate);
     final theme = FluentTheme.of(context);
 
     Widget row(int i, {required IconData icon, required String title, String? subtitle, required Widget trailing}) => Padding(
@@ -221,9 +224,13 @@ class SettingsPage extends StatelessWidget {
         row(
           13,
           icon: WindowsIcons.info,
-          title: 'Stackyard ${const String.fromEnvironment('APP_VERSION', defaultValue: 'dev')}',
-          subtitle: 'Open source. Your data stays on this ${Sys.isWindows ? 'PC' : 'Mac'}: no accounts, no telemetry.',
-          trailing: Muted('Data: ${Settings.dataDir.path}'),
+          title: 'Stackyard $appVersion',
+          subtitle: update == null
+              ? 'Open source. Your data stays on this ${Sys.isWindows ? 'PC' : 'Mac'}: no accounts, no telemetry.'
+              : 'Stackyard ${update.version} is available.',
+          trailing: update == null
+              ? Muted('Data: ${Settings.dataDir.path}')
+              : FilledButton(onPressed: () => launchUrl(update.download), child: Text('Download ${update.version}')),
         ),
       ],
     );

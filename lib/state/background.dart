@@ -10,7 +10,10 @@ import 'notify.dart';
 /// What a background check would tell you: null when there's nothing new.
 /// [key] identifies the news so the same thing isn't announced twice.
 ({String key, String title, String body})? backgroundAlert(AppState state) {
-  final updates = [for (final t in state.techs.where((t) => t.updateAvailable)) '${t.info.name} ${t.snapshot.latest}'];
+  final updates = [
+    if (state.appUpdate case final app?) 'Stackyard ${app.version}',
+    for (final t in state.techs.where((t) => t.updateAvailable)) '${t.info.name} ${t.snapshot.latest}',
+  ];
   final problems = state.notes.length + state.systemIssues.length;
   final idleBytes = state.cleanups.where((c) => c.isIdle).fold<int>(0, (s, c) => s + c.bytes);
   final free = state.reclaimableBytes + idleBytes;

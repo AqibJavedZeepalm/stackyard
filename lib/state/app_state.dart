@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:path/path.dart' as p;
 
+import '../core/app_update.dart';
 import '../core/doctor.dart';
 import '../core/installed_apps.dart';
 import '../core/market/catalog.dart';
@@ -78,6 +79,9 @@ class AppState extends ChangeNotifier {
 
   List<TechEntry> techs = [];
   List<Project> projects = [];
+
+  /// A newer Stackyard on GitHub, found with the tools' new versions.
+  AppRelease? appUpdate;
 
   /// Setup problems that don't belong to one tech (e.g. PATH).
   List<SystemIssue> systemIssues = [];
@@ -349,13 +353,18 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _fetchLatest() async {
-    await Future.wait(
-      techs.map((t) async {
+    await Future.wait([
+      ...techs.map((t) async {
         try {
           t.snapshot.latest = await t.adapter.latestVersion();
         } catch (_) {}
       }),
-    );
+      () async {
+        try {
+          appUpdate = await checkForAppUpdate();
+        } catch (_) {}
+      }(),
+    ]);
     notifyListeners();
   }
 

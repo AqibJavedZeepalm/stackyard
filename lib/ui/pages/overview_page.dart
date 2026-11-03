@@ -1,6 +1,8 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/app_update.dart';
 import '../../core/models.dart';
 import '../../core/sys.dart';
 import '../../state/app_state.dart';
@@ -85,6 +87,15 @@ class _OverviewPageState extends State<OverviewPage> {
         ),
       ),
       children: [
+        if (state.appUpdate case final app?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: InfoBar(
+              title: Text('Stackyard ${app.version} is available'),
+              content: const Text('You\'re on $appVersion.'),
+              action: FilledButton(onPressed: () => launchUrl(app.download), child: const Text('Download')),
+            ),
+          ),
         // One hero: what you can free, and where the space goes.
         Appear(
           child: SurfaceCard(
