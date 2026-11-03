@@ -493,7 +493,8 @@ class _VersionRowState extends State<VersionRow> {
       if (users > 0) '$users ${users == 1 ? 'thing uses' : 'things use'} this and will need it reinstalled.',
       ?plan.warning,
     ];
-    final change = PlannedChange(title: plan.title, recycle: plan.recycle, commands: plan.commands, warning: warning.isEmpty ? null : warning.join(' '));
+    // Only the warning changes: a Get tools install also clears its variables.
+    final change = plan.withWarning(warning.isEmpty ? null : warning.join(' '));
     final confirmed = await confirmRemoval(context, change, bytes: item.sizeBytes);
     if (confirmed != null && context.mounted) {
       context.read<AppState>().run(confirmed, removesItemIds: [item.id]);

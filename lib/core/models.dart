@@ -343,6 +343,23 @@ class PlannedChange {
     learnMoreUrl: learnMoreUrl,
     confirmLabel: confirmLabel,
   );
+
+  /// The same change with [warning] in place of its own.
+  PlannedChange withWarning(String? warning) => PlannedChange(
+    title: title,
+    commands: commands,
+    edits: edits,
+    recycle: recycle,
+    permanent: permanent,
+    downloads: downloads,
+    env: env,
+    envForEveryone: envForEveryone,
+    envBlock: envBlock,
+    record: record,
+    warning: warning,
+    learnMoreUrl: learnMoreUrl,
+    confirmLabel: confirmLabel,
+  );
   final String? warning;
   final String? learnMoreUrl;
 

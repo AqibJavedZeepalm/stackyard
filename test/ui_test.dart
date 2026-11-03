@@ -2,6 +2,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:stackyard/core/autostart.dart';
+import 'package:stackyard/core/market/catalog.dart';
+import 'package:stackyard/core/market/installed.dart';
 import 'package:stackyard/core/sys.dart';
 import 'package:stackyard/core/models.dart';
 import 'package:stackyard/core/project_junk.dart';
@@ -198,5 +200,31 @@ void main() {
     expect(tester.takeException(), isNull, reason: 'layout error after step at line 178');
     final error = tester.takeException();
     expect(error, isNull, reason: error is FlutterError ? error.diagnostics.map((d) => d.toString()).join('\n') : '$error');
+  });
+
+  testWidgets('removing a Get tools install from its page also clears its variables', (tester) async {
+    tester.view.physicalSize = const Size(1280, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    AutoStart.testValue = false;
+    final state = AppState(Settings.memory());
+    final rust = InstalledItem(id: 'market:rust', version: '1.80.0', path: r'C:\Tools\rust\1.80.0', details: const {MarketInstalls.toolKey: 'rust', MarketInstalls.scopeKey: 'user'});
+    state.techs = [TechEntry(MarketOnlyTech(RustMarket()), TechSnapshot(managerLabel: 'Installed by Stackyard', items: [rust]))];
+    state.lastScan = DateTime.now();
+    await tester.pumpWidget(app(state));
+    await settle(tester);
+
+    await tester.tap(find.text('Rust').first);
+    await settle(tester);
+    await tester.tap(find.text('1.80.0'));
+    await settle(tester);
+    await tester.tap(find.text('Remove'));
+    await settle(tester);
+    expect(find.text('Move to ${Sys.trashName}'), findsOneWidget);
+    expect(find.text(Sys.isWindows ? 'Your environment variables' : 'Your shell profile (~/.zprofile)'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await settle(tester);
+    expect(state.jobs.jobs, isEmpty);
+    expect(tester.takeException(), isNull);
   });
 }
