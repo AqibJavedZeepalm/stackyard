@@ -40,4 +40,26 @@ void main() {
       });
     }
   }
+
+  for (final wrapper in ['@ionic/angular', '@ionic/react', '@ionic/vue']) {
+    test('an $wrapper app shows under Ionic', () async {
+      final root = Directory.systemTemp.createTempSync('sy-framework');
+      addTearDown(() => root.deleteSync(recursive: true));
+      File(p.join(root.path, 'package.json')).writeAsStringSync(
+        jsonEncode({
+          'dependencies': {wrapper: '^8.0.0'},
+        }),
+      );
+      // pnpm links only declared packages into node_modules, so the wrapper's own version counts.
+      File(p.join(root.path, 'node_modules', wrapper, 'package.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync(jsonEncode({'version': '8.4.1'}));
+
+      final projects = ProjectScanner.scanSync([root.path]);
+      final snapshot = await buildRegistry().singleWhere((tech) => tech.id == 'npm:@ionic/core').detect(ScanContext(projects));
+
+      expect(snapshot!.items.single.version, '8.4.1');
+      expect(snapshot.items.single.usedBy, hasLength(1));
+    });
+  }
 }

@@ -76,6 +76,7 @@ profile = "default"
       final project = scan({'Cargo.toml': '[package]\nname = "crate"\n'});
       expect(project.types, contains('rust'));
       expect(project.pins['rust'], isNull);
+      expect(DateTime.now().difference(project.lastModified).inMinutes, lessThan(5), reason: 'Cargo.toml counts as activity');
     });
 
     test('rust-toolchain.toml channel', () {
@@ -93,6 +94,35 @@ profile = "default"
     test('a path toolchain', () {
       final project = scan({'Cargo.toml': '', 'rust-toolchain.toml': '[toolchain]\npath = "/opt/rust/stage1"\n'});
       expect(project.pins['rust']?.raw, '/opt/rust/stage1');
+    });
+
+    test('a workspace member uses the toolchain file of a folder above it', () {
+      for (final MapEntry(:key, :value) in {
+        'Cargo.toml': '[workspace]\nmembers = ["crates/*"]\n',
+        'rust-toolchain.toml': '[toolchain]\nchannel = "1.80.0"\n',
+        'crates/core/Cargo.toml': '[package]\nname = "core"\n',
+      }.entries) {
+        File(p.join(dir.path, 'ws', key))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(value);
+      }
+      final member = ProjectScanner.scanSync([dir.path]).singleWhere((pr) => pr.name == 'core');
+      expect(member.pins['rust']?.raw, '1.80.0');
+      expect(member.pins['rust']?.source, p.join('..', '..', 'rust-toolchain.toml'));
+    });
+
+    test('apps inside a Cargo repo are still found', () {
+      for (final MapEntry(:key, :value) in {
+        'Cargo.toml': '[package]\nname = "server"\n',
+        'frontend/package.json': '{}',
+        'mobile/pubspec.yaml': 'name: mobile\n',
+        'target/debug/package.json': '{}',
+      }.entries) {
+        File(p.join(dir.path, 'server', key))
+          ..createSync(recursive: true)
+          ..writeAsStringSync(value);
+      }
+      expect(ProjectScanner.scanSync([dir.path]).map((pr) => pr.name), unorderedEquals(['server', 'frontend', 'mobile']));
     });
   });
 
@@ -126,7 +156,7 @@ profile = "default"
       home.deleteSync(recursive: true);
     });
 
-    Project project(String name, {String? pin}) => Project(path: p.join(home.path, 'code', name), name: name, lastModified: DateTime.now())
+    Project project(String name, {String? pin}) => Project(path: (Directory(p.join(home.path, 'code', name))..createSync(recursive: true)).path, name: name, lastModified: DateTime.now())
       ..types.add('rust')
       ..pins.addAll({if (pin != null) 'rust': Pin(raw: pin, source: 'rust-toolchain.toml')});
 
@@ -147,9 +177,27 @@ profile = "default"
     });
 
     test('an override on the project folder beats its toolchain file', () async {
-      final snap = (await RustTech().detect(ScanContext([project('old', pin: 'nightly-2024-05-01')])))!;
+      final tech = RustTech();
+      final old = project('old', pin: 'nightly-2024-05-01');
+      final snap = (await tech.detect(ScanContext([old])))!;
       expect(snap.items.singleWhere((i) => i.title == '1.80.0-aarch64-apple-darwin').usedBy.single.note, 'rustup override');
+      expect(tech.projectVersion(old), '1.80.0');
       expect(snap.items.singleWhere((i) => i.title.startsWith('nightly')).usedBy, isEmpty);
+    });
+
+    test('an override applies to a project found through a link to its folder', () async {
+      Link(p.join(home.path, 'linked')).createSync(p.join(home.path, 'code'));
+      final viaLink = Project(path: p.join(home.path, 'linked', 'old'), name: 'old', lastModified: DateTime.now())..types.add('rust');
+      final snap = (await RustTech().detect(ScanContext([viaLink])))!;
+      expect(snap.items.singleWhere((i) => i.title == '1.80.0-aarch64-apple-darwin').usedBy.single.note, 'rustup override');
+      expect(snap.items.singleWhere((i) => i.isGlobal).usedBy, isEmpty);
+    });
+
+    test('a toolchain file closer to the project beats an override further up', () async {
+      final nested = project('old/inner', pin: 'nightly-2024-05-01');
+      final snap = (await RustTech().detect(ScanContext([nested, project('old/plain')])))!;
+      expect(snap.items.singleWhere((i) => i.title.startsWith('nightly')).usedBy.single.name, 'old/inner');
+      expect(snap.items.singleWhere((i) => i.title == '1.80.0-aarch64-apple-darwin').usedBy.map((u) => u.name), ['old/plain']);
     });
 
     test('removal goes through rustup, for the same RUSTUP_HOME', () async {
@@ -162,7 +210,7 @@ profile = "default"
       expect(cmd.arguments, ['toolchain', 'uninstall', 'nightly-2024-05-01-aarch64-apple-darwin']);
       expect(cmd.environment['RUSTUP_HOME'], p.join(home.path, 'rustup'));
       expect(plan.recycle, isEmpty, reason: 'rustup removes its own files');
-      expect(tech.planRemove(snap.items.singleWhere((i) => i.isGlobal))!.warning, contains('default toolchain'));
+      expect(tech.planRemove(snap.items.singleWhere((i) => i.isGlobal))!.warning, isNull, reason: 'the remove dialog warns about the default itself');
     });
 
     test('a linked toolchain only loses its link', () async {

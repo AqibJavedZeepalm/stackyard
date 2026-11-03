@@ -99,8 +99,13 @@ class ProjectScanner {
     final project = _detect(dir.path, names);
     if (project != null) {
       found[p.normalize(project.path).toLowerCase()] = project;
+      // A Cargo repo often keeps its web or Flutter app in a subfolder, so keep
+      // looking inside one (past Cargo's own target folder).
+      final cargoOnly = project.types.length == 1 && project.types.contains('rust');
       for (final e in entries) {
-        if (e is Directory && _monorepoDirs.contains(p.basename(e.path).toLowerCase())) {
+        if (e is! Directory) continue;
+        final name = p.basename(e.path).toLowerCase();
+        if (_monorepoDirs.contains(name) || (cargoOnly && name != 'target' && !skipFolderNames.contains(name) && !name.startsWith('.'))) {
           _walk(e, depth + 1, maxDepth, found);
         }
       }
@@ -174,6 +179,8 @@ class ProjectScanner {
       'package-lock.json',
       'yarn.lock',
       'pnpm-lock.yaml',
+      'Cargo.toml',
+      'Cargo.lock',
       'lib',
       'src',
       'app',
@@ -246,9 +253,12 @@ class ProjectScanner {
 
     final all = <String, dynamic>{if (pkg['devDependencies'] is Map) ...pkg['devDependencies'], if (pkg['dependencies'] is Map) ...pkg['dependencies']};
     for (final name in watchedPackages) {
-      final declared = all[name];
+      // Ionic apps declare @ionic/angular, @ionic/react or @ionic/vue, released
+      // in step with the @ionic/core they bring.
+      final source = name == '@ionic/core' ? ['@ionic/core', '@ionic/angular', '@ionic/react', '@ionic/vue'].where((n) => all[n] is String).firstOrNull ?? name : name;
+      final declared = all[source];
       if (declared is! String) continue;
-      final installedPkg = _json(p.join(project.path, 'node_modules', name, 'package.json'));
+      final installedPkg = _json(p.join(project.path, 'node_modules', source, 'package.json'));
       project.deps[name] = DepVersion(declared: declared, installed: installedPkg?['version'] as String?);
     }
   }
@@ -312,18 +322,23 @@ class ProjectScanner {
 
   static void _parseRust(Project project) {
     project.types.add('rust');
-    // rustup reads rust-toolchain when both files are there.
-    for (final file in ['rust-toolchain', 'rust-toolchain.toml']) {
-      final text = _read(p.join(project.path, file))?.trim();
-      if (text == null || text.isEmpty) continue;
-      // [toolchain] with a channel or a path; the old rust-toolchain file can hold just the name.
-      final toolchain = text.contains('[toolchain]')
-          ? RegExp(r'''^\s*(?:channel|path)\s*=\s*["']([^"']+)["']''', multiLine: true).firstMatch(text)?.group(1)
-          : file == 'rust-toolchain'
-          ? text.split('\n').first.trim()
-          : null;
-      if (toolchain != null) project.pins['rust'] = Pin(raw: toolchain, source: file);
-      return;
+    // Like rustup, the closest folder with a toolchain file counts, so a
+    // workspace member uses the workspace's file.
+    for (var dir = project.path; ; dir = p.dirname(dir)) {
+      // rustup reads rust-toolchain when both files are there.
+      for (final file in ['rust-toolchain', 'rust-toolchain.toml']) {
+        final text = _read(p.join(dir, file))?.trim();
+        if (text == null || text.isEmpty) continue;
+        // [toolchain] with a channel or a path; the old rust-toolchain file can hold just the name.
+        final toolchain = text.contains('[toolchain]')
+            ? RegExp(r'''^\s*(?:channel|path)\s*=\s*["']([^"']+)["']''', multiLine: true).firstMatch(text)?.group(1)
+            : file == 'rust-toolchain'
+            ? text.split('\n').first.trim()
+            : null;
+        if (toolchain != null) project.pins['rust'] = Pin(raw: toolchain, source: p.relative(p.join(dir, file), from: project.path));
+        return;
+      }
+      if (p.dirname(dir) == dir) return;
     }
   }
 }

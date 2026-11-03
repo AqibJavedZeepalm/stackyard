@@ -25,12 +25,19 @@ class RustTech extends TechAdapter {
   String? _home;
   String? _rustup;
 
+  /// Projects whose toolchain comes from a `rustup override`, not a file.
+  final _overrides = <String, String>{};
+
+  @override
+  String? projectVersion(Project project) => _overrides[project.path] ?? super.projectVersion(project);
+
   @override
   Future<TechSnapshot?> detect(ScanContext ctx) async {
     final home = Sys.env['RUSTUP_HOME'] ?? p.join(Sys.home, '.rustup');
     final toolchains = p.join(home, 'toolchains');
     if (!Sys.dirExists(toolchains)) return null;
     _home = home;
+    _overrides.clear();
     // A Mac app started from the Dock may not have ~/.cargo/bin on PATH.
     final bundled = p.join(Sys.env['CARGO_HOME'] ?? p.join(Sys.home, '.cargo'), 'bin', Sys.isWindows ? 'rustup.exe' : 'rustup');
     _rustup = Sys.which('rustup') ?? (Sys.fileExists(bundled) ? bundled : null);
@@ -80,20 +87,24 @@ class RustTech extends TechAdapter {
     final overridden = <String>{};
     for (final project in ctx.projects.where((pr) => pr.types.contains('rust'))) {
       snap.projects.add(project);
-      // Like rustup: an override on the project folder, then its toolchain file,
-      // then an override on a folder above it, then the default.
-      final here = _overrideFor(overrides, project.path, exact: true);
+      // Like rustup: the closest folder with an override or a toolchain file wins
+      // (the override when one folder has both), then the default.
+      // rustup keeps overrides under a folder's real path, with links resolved.
+      final dir = Sys.canonical(project.path);
+      final override = _overrideFor(overrides, dir);
       final pin = project.pins['rust'];
-      final above = here == null && pin == null ? _overrideFor(overrides, project.path, exact: false) : null;
-      final (wanted, note) = here != null
-          ? (here.value, 'rustup override')
+      final pinDir = pin == null ? null : Sys.canonical(p.join(project.path, p.dirname(pin.source)));
+      final overrideDir = override == null ? null : Sys.canonical(override.key);
+      final useOverride = override != null && (pinDir == null || overrideDir!.length >= pinDir.length);
+      final (wanted, note) = useOverride
+          ? (override.value, overrideDir == dir ? 'rustup override' : 'rustup override on ${override.key}')
           : pin != null
           ? (pin.raw, null)
-          : above != null
-          ? (above.value, 'rustup override on ${above.key}')
           : (null, 'No rust-toolchain file, uses the default toolchain');
-      if (here != null) overridden.add(here.key);
-      if (above != null) overridden.add(above.key);
+      if (useOverride) {
+        overridden.add(override.key);
+        _overrides[project.path] = splitToolchain(override.value).$1;
+      }
       if (wanted == null) {
         items.where((i) => i.isGlobal).firstOrNull?.usedBy.add(project.toUsage(note: note));
         continue;
@@ -126,13 +137,8 @@ class RustTech extends TechAdapter {
       commands: [
         CommandSpec(title: 'Uninstall it with rustup', executable: _rustup!, arguments: ['toolchain', 'uninstall', name], environment: {'RUSTUP_HOME': _home!}),
       ],
-      warning: item.details.containsKey('Linked to')
-          ? 'Only rustup\'s link is removed. The folder it points to stays.'
-          : item.isGlobal
-          ? 'This is the default toolchain. "cargo" and "rustc" stop working until you pick another default.'
-          : item.usedBy.isEmpty
-          ? null
-          : '${item.usedBy.length} project(s) use this toolchain.',
+      // The remove dialog already says when it's the default or in use.
+      warning: item.details.containsKey('Linked to') ? 'Only rustup\'s link is removed. The folder it points to stays.' : null,
     );
   }
 
@@ -176,14 +182,14 @@ class RustTech extends TechAdapter {
     return overrides;
   }
 
-  /// The override on [path] itself ([exact]) or on the closest folder above it.
-  static MapEntry<String, String>? _overrideFor(Map<String, String> overrides, String path, {required bool exact}) {
-    final project = p.normalize(path).toLowerCase();
+  /// The override on [path] itself or on the closest folder above it.
+  static MapEntry<String, String>? _overrideFor(Map<String, String> overrides, String path) {
+    final project = Sys.canonical(path);
     MapEntry<String, String>? best;
     var depth = -1;
     for (final e in overrides.entries) {
-      final dir = p.normalize(e.key).toLowerCase();
-      final hit = exact ? dir == project : p.isWithin(dir, project);
+      final dir = Sys.canonical(e.key);
+      final hit = dir == project || p.isWithin(dir, project);
       if (hit && dir.length > depth) (best, depth) = (e, dir.length);
     }
     return best;
