@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <b>Works with</b> Flutter (FVM) · Node.js (nvm, fnm, Volta) · Android SDK and emulators · Xcode simulators and runtimes · Gradle · Java · Python · .NET<br>
+  <b>Works with</b> Flutter (FVM) · Node.js (nvm, fnm, Volta) · Android SDK and emulators · Xcode simulators and runtimes · Gradle · Java · Python · .NET · Rust (rustup)<br>
   and spots React, React Native, Expo, Next.js, Vue, Angular, Svelte and more in your projects.
 </p>
 
@@ -86,6 +86,7 @@ Screenshots are from macOS with demo data; the animation at the top is from the 
 | Java | Program Files vendors, `/Library/Java/JavaVirtualMachines`, Homebrew, `~/.jdks`, SDKMAN, Android Studio JBR | `.java-version` |
 | Python | `py` launcher, pyenv / pyenv-win, uv, python.org, Homebrew and Microsoft Store installs | `.python-version`, `requires-python` |
 | .NET SDK | `dotnet --list-sdks` | `global.json` `version`, `rollForward` and `allowPrerelease`, resolved the way `dotnet` picks an SDK; no `global.json` uses the newest |
+| Rust | rustup toolchains in `RUSTUP_HOME` (`~/.rustup`, `%USERPROFILE%\.rustup` on Windows) | `rustup override` folders, `rust-toolchain` / `rust-toolchain.toml`, in rustup's order; no toolchain file uses the default toolchain |
 | React, React Native, Expo, Next.js, Vue, Nuxt, Angular, NestJS, Ionic, Svelte, Astro, Electron, Vite, TypeScript | Each project's `node_modules` | `package.json` |
 
 Installs use each tech's own manager (FVM, nvm / fnm / Volta, `sdkmanager`). Tools without one are installed with `winget` on Windows and Homebrew on macOS.

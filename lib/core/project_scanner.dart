@@ -122,7 +122,8 @@ class ProjectScanner {
     final isPython = names.contains('pyproject.toml') || names.contains('requirements.txt') || names.contains('.python-version');
     final isDotnet = names.contains('global.json') || names.any((n) => n.endsWith('.sln') || n.endsWith('.csproj'));
     final isJava = names.contains('pom.xml') || names.contains('.java-version');
-    if (!(isPub || isNode || isGradle || isPython || isDotnet || isJava)) return null;
+    final isRust = names.contains('cargo.toml');
+    if (!(isPub || isNode || isGradle || isPython || isDotnet || isJava || isRust)) return null;
 
     final project = Project(path: path, name: p.basename(path), lastModified: _activity(path, names));
 
@@ -131,6 +132,7 @@ class ProjectScanner {
     if (isPython) _parsePython(project);
     if (isDotnet) _parseDotnet(project);
     if (isJava) _parseJava(project);
+    if (isRust) _parseRust(project);
 
     // Android lives in ./android for Flutter and React Native apps.
     final androidRoot = isGradle ? path : p.join(path, 'android');
@@ -305,6 +307,23 @@ class ProjectScanner {
     final jv = _read(p.join(project.path, '.java-version'))?.trim();
     if (jv != null && jv.isNotEmpty) {
       project.pins['java'] = Pin(raw: jv, source: '.java-version');
+    }
+  }
+
+  static void _parseRust(Project project) {
+    project.types.add('rust');
+    // rustup reads rust-toolchain when both files are there.
+    for (final file in ['rust-toolchain', 'rust-toolchain.toml']) {
+      final text = _read(p.join(project.path, file))?.trim();
+      if (text == null || text.isEmpty) continue;
+      // [toolchain] with a channel or a path; the old rust-toolchain file can hold just the name.
+      final toolchain = text.contains('[toolchain]')
+          ? RegExp(r'''^\s*(?:channel|path)\s*=\s*["']([^"']+)["']''', multiLine: true).firstMatch(text)?.group(1)
+          : file == 'rust-toolchain'
+          ? text.split('\n').first.trim()
+          : null;
+      if (toolchain != null) project.pins['rust'] = Pin(raw: toolchain, source: file);
+      return;
     }
   }
 }

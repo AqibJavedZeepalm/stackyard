@@ -149,7 +149,7 @@ class Project {
   final String name;
   final DateTime lastModified;
 
-  /// 'flutter', 'node', 'android', 'python', 'dotnet', 'java'
+  /// 'flutter', 'node', 'android', 'python', 'dotnet', 'java', 'rust'
   final Set<String> types = {};
 
   /// techId -> pin

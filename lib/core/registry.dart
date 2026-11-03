@@ -9,6 +9,7 @@ import 'techs/gradle_tech.dart';
 import 'techs/java_tech.dart';
 import 'techs/node_tech.dart';
 import 'techs/python_tech.dart';
+import 'techs/rust_tech.dart';
 import 'techs/tech.dart';
 import 'techs/xcode_tech.dart';
 
@@ -25,6 +26,7 @@ List<TechAdapter> buildRegistry() => [
   JavaTech(),
   PythonTech(),
   DotnetTech(),
+  RustTech(),
   FrameworkTech(package: 'react', name: 'React', color: const Color(0xFF58C4DC), monogram: 'R', logo: 'assets/tech/react.svg'),
   FrameworkTech(package: 'react-native', name: 'React Native', color: const Color(0xFF58C4DC), monogram: 'RN', logo: 'assets/tech/react.svg'),
   FrameworkTech(package: 'expo', name: 'Expo', color: const Color(0xFF4630EB), monogram: 'Ex', logo: 'assets/tech/expo.svg', logoTint: LogoTint.foreground),
