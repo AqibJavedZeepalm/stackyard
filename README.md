@@ -109,7 +109,7 @@ Small menu bar apps for things I kept fixing by hand while building Stackyard.
     <td align="center" width="33%">
       <a href="https://aqibjaved.dev/apps/notchet/?ref=stackyard-readme"><img src="https://aqibjaved.dev/assets/nt-icon-glow.webp" width="64" height="64" alt="Notchet icon"><br><b>Notchet</b></a><br>
       Clipboard history that drops out of the MacBook notch with Option Command V. Text, images, links and files.<br>
-      <sub>7 days free, then $4.99 once</sub>
+      <sub>7 days free, then $9.99 once</sub>
     </td>
     <td align="center" width="33%">
       <a href="https://aqibjaved.dev/apps/displayshift/?ref=stackyard-readme"><img src="https://aqibjaved.dev/assets/ds-icon-puzzle.webp" width="64" height="64" alt="DisplayShift icon"><br><b>DisplayShift</b></a><br>
