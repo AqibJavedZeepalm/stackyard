@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>See every SDK and toolchain on your machine, which projects use each version, and what's safe to remove.</b><br>
-  Free and open source, for Windows and macOS.
+  A free, open-source Flutter SDK manager for Windows and macOS that also cleans up old Flutter and Android SDKs to free disk space.
 </p>
 
 <p align="center">
